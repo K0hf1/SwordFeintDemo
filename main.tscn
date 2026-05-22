@@ -16,6 +16,8 @@
 [ext_resource type="Texture2D" uid="uid://cbnbhxv4lpoo5" path="res://Weapons/sword_light/File3.png" id="15_82xsv"]
 [ext_resource type="Texture2D" uid="uid://cxru4rbost40j" path="res://Weapons/sword_light/File4.png" id="16_getpj"]
 [ext_resource type="Texture2D" uid="uid://cim7gblqsv2cd" path="res://Weapons/sword_light/File5.png" id="17_ryguw"]
+[ext_resource type="PackedScene" uid="uid://fk4suito2lju" path="res://dummy.tscn" id="18_074og"]
+[ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://hitbox_sl.gd" id="18_cegan"]
 [ext_resource type="Texture2D" uid="uid://bmdffq67tsgeb" path="res://Weapons/sword_light/File6.png" id="18_d13ii"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_7mycd"]
@@ -509,6 +511,10 @@ animations = [{
 "speed": 8.0
 }]
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_074og"]
+radius = 18.0
+height = 70.03998
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_cyx1q"]
 atlas = ExtResource("3_h2yge")
 region = Rect2(96, 128, 32, 32)
@@ -536,6 +542,10 @@ animations = [{
 "speed": 40.0
 }]
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_yaehf"]
+radius = 56.0
+height = 437.3335
+
 [node name="Main" type="Node2D" unique_id=1512860485]
 
 [node name="Background" type="Sprite2D" parent="." unique_id=884659416]
@@ -543,14 +553,20 @@ scale = Vector2(1.8000001, 1.4896553)
 texture = ExtResource("1_0xm2m")
 centered = false
 
-[node name="Player" type="Node2D" parent="." unique_id=1732863283]
+[node name="Player" type="Node2D" parent="." unique_id=1732863283 groups=["player"]]
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
 
 [node name="Body" type="AnimatedSprite2D" parent="Player" unique_id=478437755]
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_w48qg")
-animation = &"run_right"
+animation = &"idle_down"
+
+[node name="Hurtbox" type="Area2D" parent="Player" unique_id=1169406171 groups=["player_hurtbox"]]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=1014507411]
+position = Vector2(0, 2.25)
+shape = SubResource("CapsuleShape2D_074og")
 
 [node name="WeaponDisplay" type="Node2D" parent="Player" unique_id=388395845]
 position = Vector2(0, 50)
@@ -569,4 +585,16 @@ script = ExtResource("12_074og")
 scale = Vector2(0.5, 0.5)
 sprite_frames = SubResource("SpriteFrames_1u8w0")
 animation = &"sword_light"
-offset = Vector2(0, 150)
+offset = Vector2(0, 100)
+
+[node name="HitboxSL" type="Area2D" parent="Player/WeaponHolder/Sword/LightAttack" unique_id=1288757991 groups=["player_attack"]]
+monitoring = false
+script = ExtResource("18_cegan")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/WeaponHolder/Sword/LightAttack/HitboxSL" unique_id=473440144]
+position = Vector2(-2.6666667, 125.33333)
+rotation = 1.5707964
+shape = SubResource("CapsuleShape2D_yaehf")
+
+[node name="main" parent="." unique_id=1322366105 instance=ExtResource("18_074og")]
+position = Vector2(0, -200)

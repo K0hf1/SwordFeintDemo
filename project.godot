@@ -15,6 +15,15 @@ run/main_scene="uid://cbk5kpoflbmx1"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[global_group]
+
+player=""
+enemy=""
+player_attack=""
+enemy_attack=""
+player_hurtbox=""
+enemy_hurtbox=""
+
 [input]
 
 light_attack={

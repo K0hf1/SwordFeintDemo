@@ -1,0 +1,92 @@
+[gd_scene format=3 uid="uid://fk4suito2lju"]
+
+[ext_resource type="Script" uid="uid://dfvkaly73j4qp" path="res://dummy.gd" id="1_0umox"]
+[ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="2_btqty"]
+[ext_resource type="Script" uid="uid://c8ynsjvj2byjc" path="res://hurtbox.gd" id="3_0umox"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xmspm"]
+atlas = ExtResource("2_btqty")
+region = Rect2(0, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0umox"]
+atlas = ExtResource("2_btqty")
+region = Rect2(96, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1324b"]
+atlas = ExtResource("2_btqty")
+region = Rect2(192, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_stcs8"]
+atlas = ExtResource("2_btqty")
+region = Rect2(288, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0lhgj"]
+atlas = ExtResource("2_btqty")
+region = Rect2(384, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6daa"]
+atlas = ExtResource("2_btqty")
+region = Rect2(480, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fxv83"]
+atlas = ExtResource("2_btqty")
+region = Rect2(576, 0, 96, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y1c1b"]
+atlas = ExtResource("2_btqty")
+region = Rect2(672, 0, 96, 80)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_osmo4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xmspm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0umox")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1324b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_stcs8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0lhgj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k6daa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fxv83")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y1c1b")
+}],
+"loop": true,
+"name": &"dummy_idle",
+"speed": 8.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_sfvet"]
+radius = 18.0
+height = 70.03998
+
+[node name="DummyMain" type="Node2D" unique_id=1322366105]
+
+[node name="Dummy" type="Node2D" parent="." unique_id=2000920264 groups=["enemy"]]
+position = Vector2(576, 484)
+script = ExtResource("1_0umox")
+
+[node name="Body" type="AnimatedSprite2D" parent="Dummy" unique_id=1336076647]
+scale = Vector2(2, 2)
+sprite_frames = SubResource("SpriteFrames_osmo4")
+animation = &"dummy_idle"
+frame_progress = 0.01092441
+
+[node name="Hurtbox" type="Area2D" parent="Dummy" unique_id=999773755 groups=["enemy_hurtbox"]]
+script = ExtResource("3_0umox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Dummy/Hurtbox" unique_id=1871596429]
+position = Vector2(0, 2.25)
+shape = SubResource("CapsuleShape2D_sfvet")
