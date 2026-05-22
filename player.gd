@@ -9,7 +9,7 @@ extends CharacterBody2D
 @export var speed := 150
 @export var dash_distance := 50
 @export var dash_duration := 0.1
-@export var dash_attack_lockout := 0.25
+@export var dash_attack_lockout := 0.2
 
 @onready var anim = $Body
 @onready var weapon = $WeaponHolder/Sword

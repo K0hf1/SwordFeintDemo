@@ -1,46 +1,50 @@
 extends Area2D
 
-var has_hit := false
-var swing_active := false  # Explicit flag — the ground truth for whether this swing is live
+# Tracks which enemies were already hit in this swing
+var hit_targets: Dictionary = {}
+
+var swing_active := false
 
 
 func _ready():
-	monitoring = false
-	monitorable = false
-	area_entered.connect(_on_area_entered)
+	monitoring = true
+	monitorable = true
 
 
-# Called by is_swing_active() — hurtbox.gd queries this to reject ghost signals
+# Called by weapon system
+func start_swing():
+	hit_targets.clear()
+	swing_active = true
+
+
+func end_swing():
+	swing_active = false
+	# DO NOT disable monitoring (keeps overlap stable)
+
+
 func is_swing_active() -> bool:
 	return swing_active
 
 
-func start_swing():
-	has_hit = false
-	swing_active = true
-	set_deferred("monitorable", true)
-	set_deferred("monitoring", true)
+func _physics_process(delta):
 
-
-func end_swing():
-	swing_active = false          # Mark dead immediately — synchronous, no deferral
-	set_deferred("monitoring", false)
-	set_deferred("monitorable", false)
-	# has_hit intentionally NOT reset here (see previous notes)
-
-
-func _on_area_entered(area):
-
-	# Reject if swing is no longer active (catches internally queued signals)
 	if not swing_active:
 		return
 
-	if has_hit:
-		return
+	# Continuously evaluate overlaps
+	for area in get_overlapping_areas():
 
-	if area.is_in_group("enemy_hurtbox"):
-		has_hit = true
-		swing_active = false      # Kill swing immediately on first hit
-		print("Hit landed")
-		set_deferred("monitoring", false)
-		set_deferred("monitorable", false)
+		if not area.is_in_group("enemy_hurtbox"):
+			continue
+
+		# prevent multi-hit spam on SAME target per swing
+		if hit_targets.has(area):
+			continue
+
+		hit_targets[area] = true
+
+		# optional safety check (hurtbox must accept swing)
+		if area.has_method("_on_hit_received"):
+			area._on_hit_received(self)
+
+		print("Hit landed:", area.name)
