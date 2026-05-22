@@ -20,6 +20,10 @@
 [ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://hitbox_sl.gd" id="18_cegan"]
 [ext_resource type="Texture2D" uid="uid://bmdffq67tsgeb" path="res://Weapons/sword_light/File6.png" id="18_d13ii"]
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_cegan"]
+radius = 17.0
+height = 71.5
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_7mycd"]
 atlas = ExtResource("3_lquwl")
 region = Rect2(0, 0, 96, 80)
@@ -553,9 +557,13 @@ scale = Vector2(1.8000001, 1.4896553)
 texture = ExtResource("1_0xm2m")
 centered = false
 
-[node name="Player" type="Node2D" parent="." unique_id=1732863283 groups=["player"]]
+[node name="Player" type="CharacterBody2D" parent="." unique_id=1027904952 groups=["player"]]
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1521731674]
+position = Vector2(0, 2.25)
+shape = SubResource("CapsuleShape2D_cegan")
 
 [node name="Body" type="AnimatedSprite2D" parent="Player" unique_id=478437755]
 scale = Vector2(2, 2)
@@ -563,6 +571,7 @@ sprite_frames = SubResource("SpriteFrames_w48qg")
 animation = &"idle_down"
 
 [node name="Hurtbox" type="Area2D" parent="Player" unique_id=1169406171 groups=["player_hurtbox"]]
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=1014507411]
 position = Vector2(0, 2.25)

@@ -4,6 +4,10 @@
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="2_btqty"]
 [ext_resource type="Script" uid="uid://c8ynsjvj2byjc" path="res://hurtbox.gd" id="3_0umox"]
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_sfvet"]
+radius = 18.0
+height = 70.03998
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_xmspm"]
 atlas = ExtResource("2_btqty")
 region = Rect2(0, 0, 96, 80)
@@ -68,21 +72,21 @@ animations = [{
 "speed": 8.0
 }]
 
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_sfvet"]
-radius = 18.0
-height = 70.03998
-
 [node name="DummyMain" type="Node2D" unique_id=1322366105]
 
-[node name="Dummy" type="Node2D" parent="." unique_id=2000920264 groups=["enemy"]]
+[node name="Dummy" type="CharacterBody2D" parent="." unique_id=1433885995 groups=["enemy"]]
 position = Vector2(576, 484)
 script = ExtResource("1_0umox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Dummy" unique_id=1258077362]
+position = Vector2(0, 2.25)
+shape = SubResource("CapsuleShape2D_sfvet")
 
 [node name="Body" type="AnimatedSprite2D" parent="Dummy" unique_id=1336076647]
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_osmo4")
 animation = &"dummy_idle"
-frame_progress = 0.01092441
+frame_progress = 0.7358149
 
 [node name="Hurtbox" type="Area2D" parent="Dummy" unique_id=999773755 groups=["enemy_hurtbox"]]
 script = ExtResource("3_0umox")

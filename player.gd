@@ -1,9 +1,15 @@
-extends Node2D
+# IMPORTANT: Change the root node type in the scene from Node2D to CharacterBody2D.
+# In the Inspector, make sure:
+#   - Collision Layer includes the "player" layer
+#   - Collision Mask includes the "player" and "enemy" layers
+# This is what makes move_and_slide() respect those collision bodies.
+
+extends CharacterBody2D
 
 @export var speed := 150
 @export var dash_distance := 50
 @export var dash_duration := 0.1
-@export var dash_attack_lockout := 0.25  # seconds after dash ends before attacking is allowed
+@export var dash_attack_lockout := 0.25
 
 @onready var anim = $Body
 @onready var weapon = $WeaponHolder/Sword
@@ -16,20 +22,20 @@ var last_dir_vector := Vector2.DOWN
 
 
 func _ready():
-	# Hide the sword/attack animation by default
 	weapon.visible = false
 
 
-func _process(delta):
+func _physics_process(delta):
+	# _physics_process instead of _process so move_and_slide() runs on the physics tick
 
 	handle_input()
 
-	# Dash blocks everything — no movement, no attack
 	if is_dashing:
 		return
 
-	# Attack blocks movement — player is locked in attack state
 	if is_attacking:
+		velocity = Vector2.ZERO
+		move_and_slide()
 		return
 
 	handle_movement(delta)
@@ -42,7 +48,7 @@ func handle_input():
 
 	if Input.is_action_just_pressed("dash"):
 		dash()
-		return  # Prevent attack registering on the same frame as dash
+		return
 
 	if Input.is_action_just_pressed("light_attack"):
 		try_attack()
@@ -53,15 +59,12 @@ func handle_input():
 # --------------------
 func try_attack():
 
-	# Blocked: still dashing or in post-dash lockout
 	if is_dashing or dash_lockout_active:
 		return
 
-	# Blocked: sword is still on cooldown — don't lock the player up for nothing
 	if not weapon.can_attack:
 		return
 
-	# Blocked: already mid-attack
 	if is_attacking:
 		return
 
@@ -71,15 +74,13 @@ func try_attack():
 func light_attack():
 
 	is_attacking = true
+	velocity = Vector2.ZERO
 
-	# Hard-interrupt movement: snap to idle in last-faced direction immediately
 	anim.play(get_idle_anim())
 
-	# Show weapon, play attack
 	weapon.visible = true
 	weapon.attack_light()
 
-	# Hold player in attack state for the sword's cooldown duration
 	await get_tree().create_timer(weapon.attack_interval).timeout
 
 	weapon.visible = false
@@ -100,19 +101,19 @@ func dash():
 	if dir == Vector2.ZERO:
 		dir = Vector2.DOWN
 
-	var tween = create_tween()
-	tween.tween_property(
-		self,
-		"position",
-		position + dir.normalized() * dash_distance,
-		dash_duration
-	)
+	var dash_velocity = dir.normalized() * (dash_distance / dash_duration)
+	var elapsed := 0.0
 
-	await tween.finished
+	# Drive dash via velocity so CharacterBody2D collision still applies mid-dash
+	while elapsed < dash_duration:
+		velocity = dash_velocity
+		move_and_slide()
+		elapsed += get_physics_process_delta_time()
+		await get_tree().physics_frame
 
+	velocity = Vector2.ZERO
 	is_dashing = false
 
-	# Brief lockout so player can't immediately attack out of a dash
 	dash_lockout_active = true
 	await get_tree().create_timer(dash_attack_lockout).timeout
 	dash_lockout_active = false
@@ -137,7 +138,8 @@ func handle_movement(delta):
 	if dir != Vector2.ZERO:
 		last_dir_vector = dir.normalized()
 
-	position += dir.normalized() * speed * delta
+	velocity = dir.normalized() * speed
+	move_and_slide()
 
 	update_direction_and_animation(dir)
 
@@ -151,16 +153,13 @@ func update_direction_and_animation(dir):
 		return
 
 	if dir != Vector2.ZERO:
-
 		last_dir_vector = dir.normalized()
 
 		if abs(dir.x) > abs(dir.y):
 			anim.play("run_right" if dir.x > 0 else "run_left")
 		else:
 			anim.play("run_down" if dir.y > 0 else "run_up")
-
 	else:
-
 		anim.play(get_idle_anim())
 
 
