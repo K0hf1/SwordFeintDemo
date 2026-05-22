@@ -550,7 +550,7 @@ script = ExtResource("2_lquwl")
 [node name="Body" type="AnimatedSprite2D" parent="Player" unique_id=478437755]
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_w48qg")
-animation = &"run_up"
+animation = &"run_right"
 
 [node name="WeaponDisplay" type="Node2D" parent="Player" unique_id=388395845]
 position = Vector2(0, 50)
@@ -562,15 +562,11 @@ texture = SubResource("AtlasTexture_cyx1q")
 [node name="WeaponHolder" type="Node2D" parent="Player" unique_id=1317671784]
 
 [node name="Sword" type="Node2D" parent="Player/WeaponHolder" unique_id=1701742945]
-position = Vector2(0, 50)
 scale = Vector2(0.75, 0.75)
 script = ExtResource("12_074og")
 
 [node name="LightAttack" type="AnimatedSprite2D" parent="Player/WeaponHolder/Sword" unique_id=1763144975]
-position = Vector2(0, -100)
-rotation = 3.1415927
 scale = Vector2(0.5, 0.5)
 sprite_frames = SubResource("SpriteFrames_1u8w0")
 animation = &"sword_light"
-frame = 4
-frame_progress = 1.0
+offset = Vector2(0, 150)
