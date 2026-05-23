@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://cbk5kpoflbmx1"]
 
 [ext_resource type="Texture2D" uid="uid://bu7erb7gkriup" path="res://Backgrounds/29.png" id="1_0xm2m"]
-[ext_resource type="Script" uid="uid://b1jhuero4luwt" path="res://player.gd" id="2_lquwl"]
-[ext_resource type="Texture2D" uid="uid://c3qrh0i1qmygp" path="res://Weapons/File 2020.png" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://b1jhuero4luwt" path="res://Entities/player.gd" id="2_lquwl"]
+[ext_resource type="Texture2D" uid="uid://c3qrh0i1qmygp" path="res://Weapons/Sword/File 2020.png" id="3_h2yge"]
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="3_lquwl"]
 [ext_resource type="Texture2D" uid="uid://60ovvsvud5wt" path="res://Characters/idle_left.png" id="4_5vw27"]
 [ext_resource type="Texture2D" uid="uid://c4p72idtosc1e" path="res://Characters/idle_up.png" id="4_7mycd"]
@@ -11,14 +11,16 @@
 [ext_resource type="Texture2D" uid="uid://wl4f4m6na62i" path="res://Characters/run_left.png" id="8_ycdy4"]
 [ext_resource type="Texture2D" uid="uid://dlr8n128y7f6w" path="res://Characters/run_right.png" id="9_w48qg"]
 [ext_resource type="Texture2D" uid="uid://c5y5sxc7i1nel" path="res://Characters/run_up.png" id="10_vivmo"]
-[ext_resource type="Script" uid="uid://d25ddrwp7sfd7" path="res://sword.gd" id="12_074og"]
-[ext_resource type="Texture2D" uid="uid://dwyghja1effcn" path="res://Weapons/sword_light/File2.png" id="14_cegan"]
-[ext_resource type="Texture2D" uid="uid://cbnbhxv4lpoo5" path="res://Weapons/sword_light/File3.png" id="15_82xsv"]
-[ext_resource type="Texture2D" uid="uid://cxru4rbost40j" path="res://Weapons/sword_light/File4.png" id="16_getpj"]
-[ext_resource type="Texture2D" uid="uid://cim7gblqsv2cd" path="res://Weapons/sword_light/File5.png" id="17_ryguw"]
+[ext_resource type="Script" uid="uid://d25ddrwp7sfd7" path="res://Weapons/sword.gd" id="12_074og"]
+[ext_resource type="Texture2D" uid="uid://dwyghja1effcn" path="res://Weapons/Sword/sword_light/File2.png" id="14_cegan"]
+[ext_resource type="Texture2D" uid="uid://cbnbhxv4lpoo5" path="res://Weapons/Sword/sword_light/File3.png" id="15_82xsv"]
+[ext_resource type="Texture2D" uid="uid://cxru4rbost40j" path="res://Weapons/Sword/sword_light/File4.png" id="16_getpj"]
+[ext_resource type="Texture2D" uid="uid://cim7gblqsv2cd" path="res://Weapons/Sword/sword_light/File5.png" id="17_ryguw"]
 [ext_resource type="PackedScene" uid="uid://fk4suito2lju" path="res://dummy.tscn" id="18_074og"]
-[ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://hitbox_sl.gd" id="18_cegan"]
-[ext_resource type="Texture2D" uid="uid://bmdffq67tsgeb" path="res://Weapons/sword_light/File6.png" id="18_d13ii"]
+[ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://Weapons/Sword/sword_light/hitbox_sl.gd" id="18_cegan"]
+[ext_resource type="Texture2D" uid="uid://bmdffq67tsgeb" path="res://Weapons/Sword/sword_light/File6.png" id="18_d13ii"]
+[ext_resource type="Script" uid="uid://d4kdaqrc2wabe" path="res://Combat/input_buffer.gd" id="19_82xsv"]
+[ext_resource type="Script" uid="uid://cukcirainmw6" path="res://Combat/combat_controller.gd" id="20_getpj"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_cegan"]
 radius = 17.0
@@ -560,6 +562,10 @@ centered = false
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1027904952 groups=["player"]]
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
+speed = null
+dash_distance = null
+dash_duration = null
+dash_attack_lockout = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1521731674]
 position = Vector2(0, 2.25)
@@ -604,6 +610,12 @@ script = ExtResource("18_cegan")
 position = Vector2(-2.6666667, 125.33333)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_yaehf")
+
+[node name="InputBuffer" type="Node" parent="Player" unique_id=1310674949]
+script = ExtResource("19_82xsv")
+
+[node name="CombatController" type="Node" parent="Player" unique_id=1489655058]
+script = ExtResource("20_getpj")
 
 [node name="main" parent="." unique_id=1322366105 instance=ExtResource("18_074og")]
 position = Vector2(0, -200)

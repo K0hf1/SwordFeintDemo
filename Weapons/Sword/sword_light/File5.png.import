@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cim7gblqsv2cd"
-path="res://.godot/imported/File5.png-178ff4e7773be06b55dc45fae085e890.ctex"
+path="res://.godot/imported/File5.png-50101aa4ae5719c14f8579f190b7e834.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Weapons/sword_light/File5.png"
-dest_files=["res://.godot/imported/File5.png-178ff4e7773be06b55dc45fae085e890.ctex"]
+source_file="res://Weapons/Sword/sword_light/File5.png"
+dest_files=["res://.godot/imported/File5.png-50101aa4ae5719c14f8579f190b7e834.ctex"]
 
 [params]
 

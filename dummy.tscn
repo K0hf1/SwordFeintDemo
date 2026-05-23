@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://fk4suito2lju"]
 
-[ext_resource type="Script" uid="uid://dfvkaly73j4qp" path="res://dummy.gd" id="1_0umox"]
+[ext_resource type="Script" uid="uid://dfvkaly73j4qp" path="res://Entities/dummy.gd" id="1_0umox"]
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="2_btqty"]
-[ext_resource type="Script" uid="uid://c8ynsjvj2byjc" path="res://hurtbox.gd" id="3_0umox"]
+[ext_resource type="Script" uid="uid://c8ynsjvj2byjc" path="res://Weapons/Sword/sword_light/hurtbox.gd" id="3_0umox"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_sfvet"]
 radius = 18.0
