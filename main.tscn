@@ -1,24 +1,33 @@
 [gd_scene format=3 uid="uid://cbk5kpoflbmx1"]
 
 [ext_resource type="Texture2D" uid="uid://bu7erb7gkriup" path="res://Backgrounds/29.png" id="1_0xm2m"]
-[ext_resource type="Script" uid="uid://b1jhuero4luwt" path="res://player.gd" id="2_lquwl"]
-[ext_resource type="Texture2D" uid="uid://c3qrh0i1qmygp" path="res://Weapons/File 2020.png" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://b1jhuero4luwt" path="res://Entities/player.gd" id="2_lquwl"]
+[ext_resource type="Texture2D" uid="uid://c3qrh0i1qmygp" path="res://Weapons/Sword/File 2020.png" id="3_h2yge"]
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="3_lquwl"]
+[ext_resource type="Script" uid="uid://dsfk4ghwukwf2" path="res://Combat/parry.gd" id="3_lswn8"]
+[ext_resource type="Script" uid="uid://01yks70dsj2f" path="res://player_health.gd" id="3_xuqvo"]
 [ext_resource type="Texture2D" uid="uid://60ovvsvud5wt" path="res://Characters/idle_left.png" id="4_5vw27"]
 [ext_resource type="Texture2D" uid="uid://c4p72idtosc1e" path="res://Characters/idle_up.png" id="4_7mycd"]
+[ext_resource type="Script" uid="uid://7yynl1n5mv32" path="res://Combat/combo_tracker.gd" id="5_1u8w0"]
 [ext_resource type="Texture2D" uid="uid://bq70j8x7qcvpq" path="res://Characters/idle_right.png" id="5_kek77"]
 [ext_resource type="Texture2D" uid="uid://laaprn8uk1dg" path="res://Characters/run_down.png" id="7_dg77c"]
 [ext_resource type="Texture2D" uid="uid://wl4f4m6na62i" path="res://Characters/run_left.png" id="8_ycdy4"]
 [ext_resource type="Texture2D" uid="uid://dlr8n128y7f6w" path="res://Characters/run_right.png" id="9_w48qg"]
 [ext_resource type="Texture2D" uid="uid://c5y5sxc7i1nel" path="res://Characters/run_up.png" id="10_vivmo"]
-[ext_resource type="Script" uid="uid://d25ddrwp7sfd7" path="res://sword.gd" id="12_074og"]
-[ext_resource type="Texture2D" uid="uid://dwyghja1effcn" path="res://Weapons/sword_light/File2.png" id="14_cegan"]
-[ext_resource type="Texture2D" uid="uid://cbnbhxv4lpoo5" path="res://Weapons/sword_light/File3.png" id="15_82xsv"]
-[ext_resource type="Texture2D" uid="uid://cxru4rbost40j" path="res://Weapons/sword_light/File4.png" id="16_getpj"]
-[ext_resource type="Texture2D" uid="uid://cim7gblqsv2cd" path="res://Weapons/sword_light/File5.png" id="17_ryguw"]
+[ext_resource type="Script" uid="uid://d25ddrwp7sfd7" path="res://Weapons/sword.gd" id="12_074og"]
+[ext_resource type="Texture2D" uid="uid://b7v3cdhpcfgtv" path="res://Weapons/Sword/sword_light/warrior_skill4_frame1.png" id="13_d13ii"]
+[ext_resource type="Texture2D" uid="uid://ddrwmpcfqrvkc" path="res://Weapons/Sword/sword_light/warrior_skill4_frame2.png" id="14_1u8w0"]
+[ext_resource type="Texture2D" uid="uid://cwth52lll1faw" path="res://Weapons/Sword/sword_light/warrior_skill4_frame3.png" id="15_0odxb"]
+[ext_resource type="Texture2D" uid="uid://dd37xsq4nnkb5" path="res://Weapons/Sword/sword_light/warrior_skill4_frame4.png" id="16_lswn8"]
+[ext_resource type="Script" uid="uid://cbkxpx6it7gs2" path="res://player_hurtbox.gd" id="16_qsp4k"]
+[ext_resource type="Texture2D" uid="uid://cdenlwua6jrxf" path="res://Weapons/Sword/sword_light/warrior_skill4_frame5.png" id="17_a6jrf"]
 [ext_resource type="PackedScene" uid="uid://fk4suito2lju" path="res://dummy.tscn" id="18_074og"]
-[ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://hitbox_sl.gd" id="18_cegan"]
-[ext_resource type="Texture2D" uid="uid://bmdffq67tsgeb" path="res://Weapons/sword_light/File6.png" id="18_d13ii"]
+[ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://Weapons/Sword/sword_light/hitbox_sl.gd" id="18_cegan"]
+[ext_resource type="Texture2D" uid="uid://bdt26mc3jx4vc" path="res://Weapons/Sword/sword_light/warrior_skill4_frame6.png" id="18_xuqvo"]
+[ext_resource type="Script" uid="uid://d4kdaqrc2wabe" path="res://Combat/input_buffer.gd" id="19_82xsv"]
+[ext_resource type="Texture2D" uid="uid://6pnbbqckphgu" path="res://Weapons/Sword/sword_light/warrior_skill4_frame7.png" id="19_qsp4k"]
+[ext_resource type="Script" uid="uid://cukcirainmw6" path="res://Combat/combat_controller.gd" id="20_getpj"]
+[ext_resource type="Script" uid="uid://ckghekal766gq" path="res://Weapons/Sword/sword_heavy/hitbox_sh.gd" id="25_a6jrf"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_cegan"]
 radius = 17.0
@@ -526,29 +535,47 @@ region = Rect2(96, 128, 32, 32)
 [sub_resource type="SpriteFrames" id="SpriteFrames_1u8w0"]
 animations = [{
 "frames": [{
-"duration": 1.0,
-"texture": ExtResource("14_cegan")
+"duration": 3.0,
+"texture": ExtResource("13_d13ii")
 }, {
-"duration": 1.0,
-"texture": ExtResource("15_82xsv")
+"duration": 3.0,
+"texture": ExtResource("14_1u8w0")
 }, {
-"duration": 1.0,
-"texture": ExtResource("16_getpj")
+"duration": 4.0,
+"texture": ExtResource("15_0odxb")
 }, {
-"duration": 1.0,
-"texture": ExtResource("17_ryguw")
+"duration": 4.0,
+"texture": ExtResource("16_lswn8")
 }, {
-"duration": 1.0,
-"texture": ExtResource("18_d13ii")
+"duration": 3.0,
+"texture": ExtResource("17_a6jrf")
+}, {
+"duration": 2.0,
+"texture": ExtResource("18_xuqvo")
+}, {
+"duration": 2.0,
+"texture": ExtResource("19_qsp4k")
 }],
 "loop": false,
 "name": &"sword_light",
-"speed": 40.0
+"speed": 60.0
 }]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_yaehf"]
-radius = 56.0
-height = 437.3335
+radius = 17.333344
+height = 115.55548
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_0odxb"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"sword_heavy",
+"speed": 60.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_xuqvo"]
+radius = 28.0
+height = 133.33325
 
 [node name="Main" type="Node2D" unique_id=1512860485]
 
@@ -561,6 +588,21 @@ centered = false
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
 
+[node name="PlayerHealth" type="Node" parent="Player" unique_id=1372065532]
+script = ExtResource("3_xuqvo")
+
+[node name="Parry" type="Node" parent="Player" unique_id=1451331024]
+script = ExtResource("3_lswn8")
+
+[node name="InputBuffer" type="Node" parent="Player" unique_id=1310674949]
+script = ExtResource("19_82xsv")
+
+[node name="CombatController" type="Node" parent="Player" unique_id=1489655058]
+script = ExtResource("20_getpj")
+
+[node name="ComboTracker" type="Node" parent="Player" unique_id=330099351]
+script = ExtResource("5_1u8w0")
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1521731674]
 position = Vector2(0, 2.25)
 shape = SubResource("CapsuleShape2D_cegan")
@@ -572,6 +614,7 @@ animation = &"idle_down"
 
 [node name="Hurtbox" type="Area2D" parent="Player" unique_id=1169406171 groups=["player_hurtbox"]]
 visible = false
+script = ExtResource("16_qsp4k")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=1014507411]
 position = Vector2(0, 2.25)
@@ -591,19 +634,32 @@ scale = Vector2(0.75, 0.75)
 script = ExtResource("12_074og")
 
 [node name="LightAttack" type="AnimatedSprite2D" parent="Player/WeaponHolder/Sword" unique_id=1763144975]
-scale = Vector2(0.5, 0.5)
+scale = Vector2(1.5, 1.5)
 sprite_frames = SubResource("SpriteFrames_1u8w0")
 animation = &"sword_light"
-offset = Vector2(0, 100)
+frame = 3
+offset = Vector2(0, 30)
 
 [node name="HitboxSL" type="Area2D" parent="Player/WeaponHolder/Sword/LightAttack" unique_id=1288757991 groups=["player_attack"]]
 monitoring = false
 script = ExtResource("18_cegan")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/WeaponHolder/Sword/LightAttack/HitboxSL" unique_id=473440144]
-position = Vector2(-2.6666667, 125.33333)
+position = Vector2(0, 60)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_yaehf")
+
+[node name="HeavyAttack" type="AnimatedSprite2D" parent="Player/WeaponHolder/Sword" unique_id=1067692984]
+sprite_frames = SubResource("SpriteFrames_0odxb")
+animation = &"sword_heavy"
+
+[node name="HitboxSH" type="Area2D" parent="Player/WeaponHolder/Sword/HeavyAttack" unique_id=357929514 groups=["player_attack"]]
+monitoring = false
+script = ExtResource("25_a6jrf")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/WeaponHolder/Sword/HeavyAttack/HitboxSH" unique_id=1751224989]
+position = Vector2(0, 120)
+shape = SubResource("CapsuleShape2D_xuqvo")
 
 [node name="main" parent="." unique_id=1322366105 instance=ExtResource("18_074og")]
 position = Vector2(0, -200)

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cxru4rbost40j"
-path="res://.godot/imported/File4.png-44bf4d95713cb5662756a414bd5c052e.ctex"
+uid="uid://dd37xsq4nnkb5"
+path="res://.godot/imported/warrior_skill4_frame4.png-88ba8182ad5ad7ddc2cfeb7eb1550885.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Weapons/sword_light/File4.png"
-dest_files=["res://.godot/imported/File4.png-44bf4d95713cb5662756a414bd5c052e.ctex"]
+source_file="res://Weapons/Sword/sword_light/warrior_skill4_frame4.png"
+dest_files=["res://.godot/imported/warrior_skill4_frame4.png-88ba8182ad5ad7ddc2cfeb7eb1550885.ctex"]
 
 [params]
 
