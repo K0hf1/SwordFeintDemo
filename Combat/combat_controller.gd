@@ -76,9 +76,9 @@ func _ready() -> void:
 
 
 # ── Main tick — called by player._physics_process each frame ─────────────────
-func tick(input: InputSnapshot) -> void:
+func tick(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
 	tick_counter += 1
-	_process_combat_state(input)
+	_process_combat_state(input, dash_attack_locked)
 
 
 # ── Public queries for player.gd ─────────────────────────────────────────────
@@ -95,11 +95,11 @@ func get_state() -> CombatState:
 
 # ── State machine ────────────────────────────────────────────────────────────
 
-func _process_combat_state(input: InputSnapshot) -> void:
+func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
 	match combat_state:
 
 		CombatState.IDLE:
-			if input.light_attack_pressed:
+			if input.light_attack_pressed and not dash_attack_locked:
 				_begin_attack(_select_attack(input))
 
 		CombatState.STARTUP:

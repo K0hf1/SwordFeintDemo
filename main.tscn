@@ -562,10 +562,6 @@ centered = false
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1027904952 groups=["player"]]
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
-speed = null
-dash_distance = null
-dash_duration = null
-dash_attack_lockout = null
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1521731674]
 position = Vector2(0, 2.25)
