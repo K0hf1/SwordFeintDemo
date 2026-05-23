@@ -48,9 +48,9 @@ func _ready() -> void:
 	# Build default attack data. Replace with .tres @exports when ready.
 	var light := AttackData.new()
 	light.attack_id        = "light"
-	light.startup_frames   = 4
-	light.active_frames    = 5
-	light.recovery_frames  = 8
+	light.startup_frames   = 10
+	light.active_frames    = 1
+	light.recovery_frames  = 10
 	light.damage           = 10.0
 	light.knockback_force  = 220.0
 	light.knockback_angle_deg = 35.0

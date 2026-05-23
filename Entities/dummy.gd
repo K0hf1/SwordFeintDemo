@@ -9,7 +9,7 @@ extends Node2D
 @onready var anim: AnimatedSprite2D = $Body
 @onready var hurtbox: Area2D = $Hurtbox
 
-@export var max_hp: float = 100.0
+@export var max_hp: float = 150.0
 var hp: float = max_hp
 
 # Knockback is applied as a velocity impulse and decays over time.
