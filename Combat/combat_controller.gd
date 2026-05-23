@@ -1,87 +1,94 @@
 # combat_controller.gd
 # The authoritative combat state machine. Attach as a child of Player.
-# This script owns: combat state, tick progression, frame data, hit registration.
-# It does NOT own: movement, rendering, or input collection.
+#
+# Owns: combat state, tick progression, frame data, hit registration.
+# Does NOT own: movement, rendering, input collection, or combo chain logic.
+#
+# COMBO DESIGN:
+#   - Damage is always flat from AttackData — never modified by combo state.
+#   - Only confirmed hits (hitbox overlaps enemy hurtbox) are forwarded to ComboTracker.
+#   - Whiffed attacks (no contact) do NOT advance the chain.
+#   - Weapon switching (call notify_weapon_switched()) clears the chain via ComboTracker.
 #
 # Node setup:
 #   Player
-#     └── CombatController   ← this script
+#     ├── CombatController   ← this script
+#     └── ComboTracker       ← sibling, handles chain recording
 #
-# Requires these @onready paths to be set to match your scene tree:
-#   @onready var hitbox = $"../WeaponHolder/Sword/LightAttack/HitboxSL"
-#   @onready var sword  = $"../WeaponHolder/Sword"
-#   @onready var anim   = $"../Body"
+# Requires these @onready paths to match your scene tree:
+#   @onready var _hitbox  = $"../WeaponHolder/Sword/LightAttack/HitboxSL"
+#   @onready var _sword   = $"../WeaponHolder/Sword"
+#   @onready var _anim    = $"../Body"
+#   @onready var _combo   = $"../ComboTracker"
 #
 extends Node
 
-# ── State ────────────────────────────────────────────────────────────────────
+# ── State ─────────────────────────────────────────────────────────────────────
 enum CombatState { IDLE, STARTUP, ACTIVE, RECOVERY, HITSTUN }
 
 var combat_state: CombatState = CombatState.IDLE
 var tick_counter: int = 0          # monotonically increasing, never reset
 
-# ── Current attack ───────────────────────────────────────────────────────────
+# ── Current attack ────────────────────────────────────────────────────────────
 var current_attack: AttackData = null
-var hit_this_swing: Dictionary = {}   # { hurtbox_node: true } — per-swing hit registry
+var hit_this_swing: Dictionary = {}   # { hurtbox_node: true } — per-swing dedup registry
 
-# ── Combo tracking ───────────────────────────────────────────────────────────
-var combo_count: int = 0
-var last_attack_id: String = ""
-
-# ── Attack library ───────────────────────────────────────────────────────────
-# Populate these via @export or load from .tres files.
-# @export var attack_light: AttackData
-# @export var attack_light2: AttackData
-# For now we build defaults in _ready() so the game runs without .tres files.
+# ── Attack library ────────────────────────────────────────────────────────────
+# Keyed by attack_id string. Add more weapons by adding more entries here,
+# or (preferred) load them from .tres resources via @export.
+# @export var attack_sword_light: AttackData
 var attacks: Dictionary = {}
 
-# ── Node references (adjust paths to match your scene tree) ─────────────────
-@onready var hitbox: Area2D = $"../WeaponHolder/Sword/LightAttack/HitboxSL"
-@onready var sword: Node2D  = $"../WeaponHolder/Sword"
-@onready var anim: AnimatedSprite2D = $"../Body"
-
-# Cached reference to player (owner) for direction/position calculations
-@onready var player: CharacterBody2D = get_parent()
+# ── Node references (adjust paths to match your scene tree) ──────────────────
+@onready var _hitbox: Area2D            = $"../WeaponHolder/Sword/LightAttack/HitboxSL"
+@onready var _sword: Node2D             = $"../WeaponHolder/Sword"
+@onready var _anim: AnimatedSprite2D    = $"../Body"
+@onready var _combo: Node               = $"../ComboTracker"
+@onready var _player: CharacterBody2D   = get_parent()
 
 
 func _ready() -> void:
-	# Build default attack data. Replace with .tres @exports when ready.
-	var light := AttackData.new()
-	light.attack_id        = "light"
-	light.startup_frames   = 10
-	light.active_frames    = 1
-	light.recovery_frames  = 10
-	light.damage           = 10.0
-	light.knockback_force  = 220.0
-	light.knockback_angle_deg = 35.0
-	light.hitstun_frames   = 12
-	light.combo_followup_id = "light2"
-	light.combo_window_frames = 5
-	attacks["light"] = light
+	# ── Build default attack data ─────────────────────────────────────────────
+	# Replace with .tres @exports when ready. This keeps the game runnable
+	# without any Inspector wiring.
+	#
+	# DAMAGE IS FLAT. There is no "light2" with reduced damage.
+	# Every sword light attack deals the same damage regardless of chain position.
+	# The combo chain records what hit — it does not change what hits cost.
 
-	var light2 := AttackData.new()
-	light2.attack_id        = "light2"
-	light2.startup_frames   = 3
-	light2.active_frames    = 4
-	light2.recovery_frames  = 10
-	light2.damage           = 8.0
-	light2.knockback_force  = 180.0
-	light2.knockback_angle_deg = 50.0
-	light2.hitstun_frames   = 10
-	light2.combo_followup_id = ""
-	attacks["light2"] = light2
+	var sword_light := AttackData.new()
+	sword_light.attack_id          = "sword_light"
+	sword_light.weapon_id          = "sword"
+	sword_light.attack_type        = "light"
+	sword_light.startup_frames     = 10
+	sword_light.active_frames      = 1
+	sword_light.recovery_frames    = 10
+	sword_light.damage             = 10.0   # FLAT — never changes
+	sword_light.knockback_force    = 220.0
+	sword_light.knockback_angle_deg = 35.0
+	sword_light.hitstun_frames     = 12
+	attacks["sword_light"] = sword_light
+
+	# Future weapons: add their attacks here with appropriate weapon_id values.
+	# e.g.
+	#   var bow_light := AttackData.new()
+	#   bow_light.attack_id   = "bow_light"
+	#   bow_light.weapon_id   = "bow"
+	#   bow_light.attack_type = "light"
+	#   bow_light.damage      = 7.0
+	#   attacks["bow_light"]  = bow_light
 
 	# Hitbox starts inactive
-	hitbox.monitoring = false
+	_hitbox.monitoring = false
 
 
-# ── Main tick — called by player._physics_process each frame ─────────────────
+# ── Main tick — called by player._physics_process each frame ──────────────────
 func tick(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
 	tick_counter += 1
 	_process_combat_state(input, dash_attack_locked)
 
 
-# ── Public queries for player.gd ─────────────────────────────────────────────
+# ── Public queries for player.gd ──────────────────────────────────────────────
 
 func can_move() -> bool:
 	return combat_state == CombatState.IDLE
@@ -93,7 +100,20 @@ func get_state() -> CombatState:
 	return combat_state
 
 
-# ── State machine ────────────────────────────────────────────────────────────
+# ── Weapon switch notification ────────────────────────────────────────────────
+# Call this from player.gd whenever the player switches active weapons.
+# This forwards to ComboTracker so the chain is cleared immediately.
+#
+# Example (in player.gd):
+#   combat.notify_weapon_switched("bow")
+#
+func notify_weapon_switched(new_weapon_id: String) -> void:
+	_combo.weapon_switched(new_weapon_id)
+	# Additional per-controller cleanup if needed (e.g. hide current weapon visuals)
+	print("[Combat] Weapon switched to '%s' — notified ComboTracker." % new_weapon_id)
+
+
+# ── State machine ─────────────────────────────────────────────────────────────
 
 func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
 	match combat_state:
@@ -112,44 +132,32 @@ func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = fals
 				_enter_recovery()
 
 		CombatState.RECOVERY:
-			# Combo cancel window: check for follow-up input near end of recovery
-			if current_attack.combo_followup_id != "":
-				var combo_open = current_attack.recovery_end_tick - current_attack.combo_window_frames
-				if tick_counter >= combo_open and input.light_attack_pressed:
-					var followup = attacks.get(current_attack.combo_followup_id, null)
-					if followup != null:
-						combo_count += 1
-						_begin_attack(followup)
-						return
-
+			# NOTE: There is no combo cancel window here anymore.
+			# The old system allowed pressing attack during recovery to chain into
+			# "light2" with reduced damage — that was wrong per the design spec.
+			# Combos are tracked by hit confirmation only, not by cancel windows.
+			# Recovery simply runs its full duration and returns to IDLE.
 			if tick_counter >= current_attack.recovery_end_tick:
 				_enter_idle()
 
 		CombatState.HITSTUN:
-			# Hitstun is driven externally by whoever called enter_hitstun().
-			# It uses the same tick-counter pattern.
 			if tick_counter >= _hitstun_end_tick:
 				_enter_idle()
 
 
-# ── State transitions ────────────────────────────────────────────────────────
+# ── State transitions ──────────────────────────────────────────────────────────
 
 func _begin_attack(data: AttackData) -> void:
-	# Track combo chain
-	if last_attack_id == "" or last_attack_id != data.attack_id:
-		pass  # not a followup, combo_count handled by caller
-	last_attack_id = data.attack_id
-
 	current_attack = data
 	current_attack.compute_ticks(tick_counter)
 	hit_this_swing.clear()
 	combat_state = CombatState.STARTUP
 
-	# Tell weapon to aim and start its visual
-	sword.execute_attack(data, player.last_aim_direction)
+	# Tell the weapon executor to aim and start its visual
+	_sword.execute_attack(data, _player.last_aim_direction)
 
-	# Visual feedback (does not drive state)
-	anim.play("idle_" + _dir_suffix(player.last_dir_vector))
+	# Drive body animation (follows state, does not affect it)
+	_anim.play("idle_" + _dir_suffix(_player.last_dir_vector))
 
 	print("[Combat] STARTUP — attack:%s  startup_end:%d  active_end:%d  recovery_end:%d"
 		% [data.attack_id, data.startup_end_tick, data.active_end_tick, data.recovery_end_tick])
@@ -157,85 +165,93 @@ func _begin_attack(data: AttackData) -> void:
 
 func _enter_active() -> void:
 	combat_state = CombatState.ACTIVE
-	hitbox.monitoring = true
-	# Optional: play active-frame animation here
+	_hitbox.monitoring = true
 	print("[Combat] ACTIVE — tick:%d" % tick_counter)
 
 
 func _enter_recovery() -> void:
 	combat_state = CombatState.RECOVERY
-	hitbox.monitoring = false
+	_hitbox.monitoring = false
 	print("[Combat] RECOVERY — tick:%d" % tick_counter)
 
 
 func _enter_idle() -> void:
 	combat_state = CombatState.IDLE
-	hitbox.monitoring = false
+	_hitbox.monitoring = false
 	hit_this_swing.clear()
 	current_attack = null
-	combo_count = 0
-	last_attack_id = ""
-	sword.visible = false
+	_sword.visible = false
 	print("[Combat] IDLE — tick:%d" % tick_counter)
 
 
-# ── Hit registration (called each ACTIVE tick) ───────────────────────────────
+# ── Hit registration (called each ACTIVE tick) ────────────────────────────────
 
 func _query_hits() -> void:
-	for area in hitbox.get_overlapping_areas():
+	for area in _hitbox.get_overlapping_areas():
 		if not area.is_in_group("enemy_hurtbox"):
 			continue
 		if hit_this_swing.has(area):
-			continue  # already hit this target this swing
+			continue  # already hit this target this swing — per-swing dedup
 
 		hit_this_swing[area] = true
 
+		# Build and emit the hit event
 		var hit := _build_hit_data(area)
 		area.hit_received.emit(hit)
 
-		print("[Combat] HIT — target:%s  damage:%.1f" % [area.get_parent().name, hit.damage])
+		# Record this confirmed hit in the combo chain.
+		# This is the ONLY place combo chain advances — on a confirmed hit, not on press.
+		_combo.record_hit(current_attack)
+
+		print("[Combat] HIT — target:%s  damage:%.1f  chain_length:%d"
+			% [area.get_parent().name, hit.damage, _combo.get_chain_length()])
 
 
 func _build_hit_data(target_hurtbox: Area2D) -> HitData:
 	var hit := HitData.new()
-	hit.attacker       = player
+	hit.attacker       = _player
 	hit.attack_id      = current_attack.attack_id
+	# Damage comes directly from AttackData — never modified by combo state.
 	hit.damage         = current_attack.damage
 	hit.hitstun_frames = current_attack.hitstun_frames
 
-	# Compute knockback vector: direction from player to target, rotated by angle
-	var to_target := (target_hurtbox.global_position - player.global_position).normalized()
+	# Knockback: direction from attacker to target, tilted upward by angle
+	var to_target  := (target_hurtbox.global_position - _player.global_position).normalized()
 	var angle_rad  := deg_to_rad(current_attack.knockback_angle_deg)
-	# Rotate the push direction upward (negative y in Godot 2D = up)
-	var kb_dir := Vector2(to_target.x, -abs(sin(angle_rad))).normalized()
+	var kb_dir     := Vector2(to_target.x, -abs(sin(angle_rad))).normalized()
 	hit.knockback_vector = kb_dir * current_attack.knockback_force
 
 	return hit
 
 
-# ── Hitstun entry (called by health/damage system when this player is hit) ───
+# ── Hitstun entry (called by health/damage system when this player is hit) ────
 
 var _hitstun_end_tick: int = 0
 
 func enter_hitstun(frames: int) -> void:
 	combat_state = CombatState.HITSTUN
-	hitbox.monitoring = false
+	_hitbox.monitoring = false
 	_hitstun_end_tick = tick_counter + frames
 	hit_this_swing.clear()
 	print("[Combat] HITSTUN for %d frames" % frames)
 
 
-# ── Attack selection ─────────────────────────────────────────────────────────
+# ── Attack selection ──────────────────────────────────────────────────────────
+# Selects the correct AttackData for the active weapon and input state.
+# Currently only the sword is implemented; add weapon routing here when
+# additional weapons are added.
 
-func _select_attack(input: InputSnapshot) -> AttackData:
-	# Directional: if aiming up strongly, use upward attack when you have one
-	# var aim = input.aim_direction
-	# if aim.y < -0.7 and attacks.has("light_up"):
-	#     return attacks["light_up"]
-	return attacks["light"]
+func _select_attack(_input: InputSnapshot) -> AttackData:
+	# TODO: when weapon switching is added, read the active weapon_id from
+	# the player and return the matching attack entry.
+	# e.g.:
+	#   match player.active_weapon_id:
+	#       "sword": return attacks["sword_light"]
+	#       "bow":   return attacks["bow_light"]
+	return attacks["sword_light"]
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 func _dir_suffix(dir: Vector2) -> String:
 	if abs(dir.x) > abs(dir.y):

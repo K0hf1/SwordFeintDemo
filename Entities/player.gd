@@ -1,12 +1,14 @@
 # player.gd  (REFACTORED)
-# Player is now a physics orchestrator. It:
+# Player is the physics orchestrator. It:
 #   1. Captures input via InputBuffer
 #   2. Delegates combat simulation to CombatController
 #   3. Handles movement and dash (tick-based)
 #   4. Drives animation based on state (never the other way around)
 #
-# Removed: is_attacking flag, await create_timer(), direct weapon calls,
-#          light_attack() coroutine, direct Input.* reads in gameplay logic.
+# WEAPON SWITCHING:
+#   When the player switches weapons, call combat.notify_weapon_switched(new_id).
+#   This clears the combo chain in ComboTracker. The actual weapon-swap UI/logic
+#   is not yet implemented — the stub below shows where it goes.
 #
 # Scene node setup:
 #   Player (CharacterBody2D)
@@ -14,6 +16,7 @@
 #     ├── Hurtbox (Area2D)
 #     ├── InputBuffer (Node)
 #     ├── CombatController (Node)
+#     ├── ComboTracker (Node)          ← NEW — add to scene tree
 #     └── WeaponHolder (Node2D)
 #           └── Sword (Node2D)
 #               └── LightAttack (AnimatedSprite2D)
@@ -22,21 +25,18 @@
 extends CharacterBody2D
 
 @export var speed := 150.0
-@export var dash_force := 500.0        # pixels/sec during the dash
+@export var dash_force := 500.0
 
-# Dash timing — both in ticks (60 ticks = 1 second)
-@export var dash_frames := 6           # how long the dash movement lasts (~100ms)
-@export var dash_cooldown_frames := 30 # how soon you can dash AGAIN after dashing (~500ms)
-
-# Attack lockout — separate from dash cooldown.
-# This is the window after a dash ends where attacking is disabled.
-# Prevents dash-cancelling into an instant attack (the original intent).
-# Kept in ticks so it stays deterministic.
-@export var dash_attack_lockout_frames := 20  # ~133ms — tweak to taste
+# Dash timing — in ticks (60 ticks = 1 second)
+@export var dash_frames := 6
+@export var dash_cooldown_frames := 30
+@export var dash_attack_lockout_frames := 20
 
 @onready var anim: AnimatedSprite2D = $Body
 @onready var input_buffer: Node     = $InputBuffer
 @onready var combat: Node           = $CombatController
+# ComboTracker is not read directly by player — CombatController references it.
+# It is listed here as documentation of the required scene tree.
 
 # Direction state — readable by CombatController for attack orientation
 var last_dir_vector: Vector2 = Vector2.DOWN
@@ -50,9 +50,8 @@ var dash_active: bool = false
 var dash_tick_start: int = -999
 var dash_dir: Vector2 = Vector2.ZERO
 
-# TWO separate lockout timers — this was the bug.
-var dash_cooldown_until: int = -999       # blocks next dash
-var dash_attack_lockout_until: int = -999 # blocks attacking after dash
+var dash_cooldown_until: int       = -999
+var dash_attack_lockout_until: int = -999
 
 
 func _physics_process(_delta: float) -> void:
@@ -69,8 +68,6 @@ func _physics_process(_delta: float) -> void:
 	_handle_dash_input(input)
 
 	# 4. Advance combat simulation
-	# Pass dash_attack_locked so CombatController can refuse attack inputs
-	# during the post-dash lockout window.
 	combat.tick(input, _is_dash_attack_locked())
 
 	# 5. Apply movement
@@ -85,15 +82,29 @@ func _physics_process(_delta: float) -> void:
 	# 6. Drive animation from state
 	_update_animation(input)
 
+	# 7. Weapon switch input (STUB — implement when weapon system is added)
+	# _handle_weapon_switch_input(input)
 
-# ── Dash ─────────────────────────────────────────────────────────────────────
+
+# ── Weapon switching (STUB) ───────────────────────────────────────────────────
+# Uncomment and expand when the weapon system is implemented.
+# Calling combat.notify_weapon_switched() is what clears the combo chain.
+#
+# func _handle_weapon_switch_input(input: InputSnapshot) -> void:
+#     if input.weapon_next_pressed:
+#         active_weapon_id = _get_next_weapon()
+#         combat.notify_weapon_switched(active_weapon_id)
+#         # ... hide/show weapon nodes ...
+
+
+# ── Dash ──────────────────────────────────────────────────────────────────────
 
 func _handle_dash_input(input: InputSnapshot) -> void:
 	if not input.dash_pressed:
 		return
 	if dash_active:
 		return
-	if tick < dash_cooldown_until:   # dash cooldown — can't dash again yet
+	if tick < dash_cooldown_until:
 		return
 	if combat.is_busy():
 		return
@@ -110,10 +121,9 @@ func _tick_dash() -> void:
 		velocity = dash_dir * dash_force
 		move_and_slide()
 	else:
-		# Dash movement ended — start BOTH cooldowns independently
 		dash_active = false
-		dash_cooldown_until       = tick + dash_cooldown_frames       # next dash gate
-		dash_attack_lockout_until = tick + dash_attack_lockout_frames # attack gate
+		dash_cooldown_until       = tick + dash_cooldown_frames
+		dash_attack_lockout_until = tick + dash_attack_lockout_frames
 		velocity = Vector2.ZERO
 
 

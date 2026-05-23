@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="3_lquwl"]
 [ext_resource type="Texture2D" uid="uid://60ovvsvud5wt" path="res://Characters/idle_left.png" id="4_5vw27"]
 [ext_resource type="Texture2D" uid="uid://c4p72idtosc1e" path="res://Characters/idle_up.png" id="4_7mycd"]
+[ext_resource type="Script" uid="uid://7yynl1n5mv32" path="res://Combat/combo_tracker.gd" id="5_1u8w0"]
 [ext_resource type="Texture2D" uid="uid://bq70j8x7qcvpq" path="res://Characters/idle_right.png" id="5_kek77"]
 [ext_resource type="Texture2D" uid="uid://laaprn8uk1dg" path="res://Characters/run_down.png" id="7_dg77c"]
 [ext_resource type="Texture2D" uid="uid://wl4f4m6na62i" path="res://Characters/run_left.png" id="8_ycdy4"]
@@ -571,6 +572,15 @@ centered = false
 position = Vector2(576, 484)
 script = ExtResource("2_lquwl")
 
+[node name="InputBuffer" type="Node" parent="Player" unique_id=1310674949]
+script = ExtResource("19_82xsv")
+
+[node name="CombatController" type="Node" parent="Player" unique_id=1489655058]
+script = ExtResource("20_getpj")
+
+[node name="ComboTracker" type="Node" parent="Player" unique_id=330099351]
+script = ExtResource("5_1u8w0")
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1521731674]
 position = Vector2(0, 2.25)
 shape = SubResource("CapsuleShape2D_cegan")
@@ -615,12 +625,6 @@ script = ExtResource("18_cegan")
 position = Vector2(0, 60)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_yaehf")
-
-[node name="InputBuffer" type="Node" parent="Player" unique_id=1310674949]
-script = ExtResource("19_82xsv")
-
-[node name="CombatController" type="Node" parent="Player" unique_id=1489655058]
-script = ExtResource("20_getpj")
 
 [node name="main" parent="." unique_id=1322366105 instance=ExtResource("18_074og")]
 position = Vector2(0, -200)
