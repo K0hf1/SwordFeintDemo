@@ -38,9 +38,16 @@ extends Node
 # 12 ticks ≈ 200ms — tight but learnable. Tune to taste.
 const PARRY_WINDOW_FRAMES: int = 12
 
+# Cooldown between parry attempts (seconds). Prevents spam.
+# At 60Hz: 1.5s = 90 ticks, but we track this in real time via _process
+# so it works regardless of physics tick rate.
+const PARRY_COOLDOWN_SECONDS: float = 1.5
+
 # ── State ─────────────────────────────────────────────────────────────────────
-var _is_active: bool     = false
-var _window_end_tick: int = 0
+var _is_active:       bool = false
+var _window_end_tick: int  = 0
+
+var _cooldown_remaining: float = 0.0   # counts down in _process; >0 means on cooldown
 
 # ── Per-weapon effect registry ────────────────────────────────────────────────
 # Maps weapon_id → child Node that has a play_effect() method.
@@ -69,6 +76,14 @@ func _ready() -> void:
 	pass
 
 
+func _process(delta: float) -> void:
+	if _cooldown_remaining > 0.0:
+		_cooldown_remaining -= delta
+		if _cooldown_remaining < 0.0:
+			_cooldown_remaining = 0.0
+			print("[Parry] Cooldown expired — parry available.")
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 # Called by CombatController when parry input fires and state permits.
@@ -76,7 +91,10 @@ func _ready() -> void:
 func begin_parry(tick_now: int) -> void:
 	if _is_active:
 		return   # already in a parry window, ignore re-press
-	_is_active      = true
+	if _cooldown_remaining > 0.0:
+		print("[Parry] On cooldown — %.2fs remaining." % _cooldown_remaining)
+		return
+	_is_active       = true
 	_window_end_tick = tick_now + PARRY_WINDOW_FRAMES
 	print("[Parry] Window opened — ends at tick %d" % _window_end_tick)
 	parry_started.emit()
@@ -170,12 +188,21 @@ func _play_parry_effect(weapon_id: String) -> void:
 
 
 func _close_window(was_success: bool) -> void:
-	_is_active = false
-	if not was_success:
-		print("[Parry] Window closed — no heavy intercepted.")
+	_is_active          = false
+	_cooldown_remaining = PARRY_COOLDOWN_SECONDS
+	if was_success:
+		print("[Parry] Window closed (SUCCESS) — cooldown %.1fs." % PARRY_COOLDOWN_SECONDS)
+	else:
+		print("[Parry] Window closed (whiff) — cooldown %.1fs." % PARRY_COOLDOWN_SECONDS)
 		parry_whiff.emit()
 
 
-# ── Convenience query (called by CombatController) ────────────────────────────
+# ── Convenience queries (called by CombatController) ─────────────────────────
 func is_active() -> bool:
 	return _is_active
+
+func is_on_cooldown() -> bool:
+	return _cooldown_remaining > 0.0
+
+func get_cooldown_remaining() -> float:
+	return _cooldown_remaining

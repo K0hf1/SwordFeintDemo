@@ -21,3 +21,7 @@ extends Area2D
 func _ready() -> void:
 	monitoring  = false   # CombatController activates this
 	monitorable = true    # enemies can detect us if needed
+	
+func set_active(value: bool) -> void:
+	monitoring = value
+	visible = value  # for debug clarity only

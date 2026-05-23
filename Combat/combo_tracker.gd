@@ -35,9 +35,10 @@
 extends Node
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-const CHAIN_LENGTH:    int   = 3
-const INVALID_COMBO:   String = "LLL"
-const EXPIRY_SECONDS:  float  = 3.5   # inactivity window before chain + slots clear
+const CHAIN_LENGTH:         int   = 3
+const INVALID_COMBO:        String = "LLL"
+const CHAIN_EXPIRY_SECONDS: float  = 3.5   # resets on every confirmed hit
+const ULT_EXPIRY_SECONDS:   float  = 3.5   # starts when ult slot is earned; independent
 
 # ── Chain state ───────────────────────────────────────────────────────────────
 var _chain: Array[String] = []
@@ -46,14 +47,21 @@ var _chain_weapon_id: String = ""
 # ── Ultimate slots ────────────────────────────────────────────────────────────
 # "weapon_id:COMBO_KEY" → true
 # Persists across weapon switches.
+# While ANY slot is held, record_hit() is BLOCKED — no new chains can start.
+# Cleared by: Tab (weapon_switched), R (try_cast_ultimate), or ult timer expiry.
 var _ultimate_slots: Dictionary = {}
 
-# ── Expiry timer ──────────────────────────────────────────────────────────────
-# Tracks seconds since the last relevant activity (confirmed hit or ultimate earned).
-# Counts up each _process() frame. Resets to 0.0 on activity. When it crosses
-# EXPIRY_SECONDS, chain and all ultimate slots are cleared.
-var _inactivity_timer: float = 0.0
-var _timer_running: bool     = false   # only ticks when there's something to expire
+# ── Chain timer ───────────────────────────────────────────────────────────────
+# Resets to 0 on every confirmed hit.
+# When it crosses CHAIN_EXPIRY_SECONDS the in-progress chain clears.
+var _chain_timer:         float = 0.0
+var _chain_timer_running: bool  = false
+
+# ── Ultimate hold timer ───────────────────────────────────────────────────────
+# Starts fresh when an ultimate slot is earned. Independent of chain timer.
+# When it crosses ULT_EXPIRY_SECONDS the held ult expires without being cast.
+var _ult_timer:         float = 0.0
+var _ult_timer_running: bool  = false
 
 
 # ── Signals ───────────────────────────────────────────────────────────────────
@@ -64,27 +72,39 @@ signal chain_cleared()
 signal combo_expired()   # fired when the expiry timer elapses
 
 
-# ── Expiry tick ───────────────────────────────────────────────────────────────
+# ── Timer tick ────────────────────────────────────────────────────────────────
 func _process(delta: float) -> void:
-	if not _timer_running:
-		return
+	# Chain timer — clears in-progress chain on inactivity
+	if _chain_timer_running:
+		_chain_timer += delta
+		if _chain_timer >= CHAIN_EXPIRY_SECONDS:
+			_on_chain_expiry()
 
-	_inactivity_timer += delta
-
-	if _inactivity_timer >= EXPIRY_SECONDS:
-		_on_expiry()
+	# Ult hold timer — clears held ultimate independently of chain activity
+	if _ult_timer_running:
+		_ult_timer += delta
+		if _ult_timer >= ULT_EXPIRY_SECONDS:
+			_on_ult_expiry()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
 # Called by CombatController._query_hits() on a confirmed, unguarded hit.
 func record_hit(attack: AttackData) -> void:
+	# BLOCK new combos while an ultimate is held.
+	# Player must cast (R) or clear (Tab) before building a new chain.
+	if not _ultimate_slots.is_empty():
+		print("[Combo] Hit ignored — ultimate held. Cast (R) or switch weapons (Tab) to clear.")
+		return
+
 	# Weapon mismatch guard — safety net for edge cases
 	if _chain_weapon_id != "" and attack.weapon_id != _chain_weapon_id:
 		_reset_chain()
 
 	_chain_weapon_id = attack.weapon_id
-	_reset_inactivity_timer()   # any confirmed hit resets expiry
+
+	# Every confirmed hit resets the chain timer — keeps the string alive
+	_reset_chain_timer()
 
 	var token: String = "L" if attack.attack_type == "light" else "H"
 	_chain.append(token)
@@ -97,14 +117,16 @@ func record_hit(attack: AttackData) -> void:
 		_evaluate_chain()
 
 
-# Called when the player switches weapons.
-# Clears in-progress chain. Ultimate slots are preserved.
+# Called when the player switches weapons (Tab).
+# Clears in-progress chain AND held ultimate slots — Tab is the "clear ult" escape.
 func weapon_switched(new_weapon_id: String) -> void:
-	if _chain.size() > 0 or _chain_weapon_id != "":
-		print("[Combo] Weapon switch → '%s' — chain cleared (ultimates preserved)."
-			% new_weapon_id)
+	var had_ult := not _ultimate_slots.is_empty()
+	if _chain.size() > 0 or _chain_weapon_id != "" or had_ult:
+		print("[Combo] Weapon switch → '%s' — chain + ult slots cleared." % new_weapon_id)
 		_reset_chain()
-	# Timer keeps running if ultimate slots exist
+		_ultimate_slots.clear()
+		_stop_ult_timer()
+		combo_expired.emit()
 
 
 # Called by CombatController when the player presses R.
@@ -120,15 +142,8 @@ func try_cast_ultimate(active_weapon_id: String) -> bool:
 				% [active_weapon_id, combo_key])
 			ultimate_cast.emit(active_weapon_id, combo_key)
 
-			# TODO: trigger actual ability execution in a future iteration.
-			# e.g. get_parent().execute_ultimate(active_weapon_id, combo_key)
-
-			# Casting resets the inactivity timer; if more slots exist they stay alive.
-			# If no chain and no slots remain, timer will naturally expire or stop.
-			if _ultimate_slots.is_empty() and _chain.is_empty():
-				_stop_inactivity_timer()
-			else:
-				_reset_inactivity_timer()
+			# Stop ult timer — slot consumed
+			_stop_ult_timer()
 			return true
 
 	print("[Combo] No ultimate ready for weapon '%s'." % active_weapon_id)
@@ -158,32 +173,34 @@ func _evaluate_chain() -> void:
 		print("[Combo] Chain '%s' on '%s' — no ultimate (LLL excluded by design)."
 			% [key, weapon])
 		_reset_chain()
-		# Timer keeps running if ultimate slots exist; otherwise stop.
-		if _ultimate_slots.is_empty():
-			_stop_inactivity_timer()
+		_stop_chain_timer()
 		return
 
 	var slot_key: String = weapon + ":" + key
 	_ultimate_slots[slot_key] = true
 
-	# Earning an ultimate resets the expiry window — it stays alive for another 3.5s.
-	_reset_inactivity_timer()
+	# Chain is consumed — stop chain timer, start fresh ult hold timer
+	_reset_chain()
+	_stop_chain_timer()
+	_reset_ult_timer()
 
-	print("[Combo] *** ULTIMATE READY *** — weapon:%s  combo:%s  (press R to unleash)"
-		% [weapon, key])
+	print("[Combo] *** ULTIMATE READY *** — weapon:%s  combo:%s  (press R to unleash, %.1fs window)"
+		% [weapon, key, ULT_EXPIRY_SECONDS])
 	ultimate_ready.emit(weapon, key)
 
+
+func _on_chain_expiry() -> void:
+	print("[Combo] Chain timer expired — in-progress chain cleared.")
 	_reset_chain()
-
-
-func _on_expiry() -> void:
-	print("[Combo] Inactivity timeout — chain and all ultimate slots cleared.")
-	_chain.clear()
-	_chain_weapon_id = ""
-	_ultimate_slots.clear()
-	_stop_inactivity_timer()
-	combo_expired.emit()
+	_stop_chain_timer()
 	chain_cleared.emit()
+
+
+func _on_ult_expiry() -> void:
+	print("[Combo] Ultimate hold timer expired — ult slot cleared without casting.")
+	_ultimate_slots.clear()
+	_stop_ult_timer()
+	combo_expired.emit()
 
 
 func _reset_chain() -> void:
@@ -192,14 +209,24 @@ func _reset_chain() -> void:
 	chain_cleared.emit()
 
 
-func _reset_inactivity_timer() -> void:
-	_inactivity_timer = 0.0
-	_timer_running    = true
+func _reset_chain_timer() -> void:
+	_chain_timer         = 0.0
+	_chain_timer_running = true
 
 
-func _stop_inactivity_timer() -> void:
-	_inactivity_timer = 0.0
-	_timer_running    = false
+func _stop_chain_timer() -> void:
+	_chain_timer         = 0.0
+	_chain_timer_running = false
+
+
+func _reset_ult_timer() -> void:
+	_ult_timer         = 0.0
+	_ult_timer_running = true
+
+
+func _stop_ult_timer() -> void:
+	_ult_timer         = 0.0
+	_ult_timer_running = false
 
 
 func _chain_as_string() -> String:
