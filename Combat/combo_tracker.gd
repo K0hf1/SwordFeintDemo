@@ -4,31 +4,28 @@
 #
 # ── DESIGN RULES ──────────────────────────────────────────────────────────────
 #
-#   1. Only CONFIRMED HITS advance the chain.
-#      Whiffed attacks (no hurtbox contact) do nothing. CombatController calls
-#      record_hit() only from inside _query_hits() after overlap is confirmed.
+#   1. Only CONFIRMED HITS on unguarded targets advance the chain.
+#      Whiffed attacks and hits on guarded targets do NOT count.
+#      CombatController calls record_hit() only after both conditions pass.
 #
 #   2. The chain is per-weapon and weapon-scoped.
-#      The first hit locks the chain to that weapon_id. weapon_switched() resets
-#      everything. A hit from a different weapon_id mid-chain also force-resets.
+#      The first hit locks the chain to that weapon_id.
+#      weapon_switched() clears the chain (ultimates are preserved).
 #
-#   3. "light light light" IS NOT a valid combo. It is excluded by design.
-#      All other 3-hit permutations of light/heavy ARE valid (7 total).
-#      Completing LLL clears the chain with no ultimate reward.
+#   3. "LLL" (light light light) is NOT a valid combo — no ultimate awarded.
+#      All other 7 permutations of L/H across 3 hits are valid.
 #
-#   4. Damage is NEVER modified here. This class is read-only relative to stats.
+#   4. EXPIRY TIMER — 3.5 seconds.
+#      If the player has not landed a hit in 3.5 seconds, the chain clears.
+#      The timer resets on every confirmed hit AND when an ultimate slot is earned.
+#      Earned but uncast ultimate slots also expire after 3.5 seconds of inactivity.
+#      Casting an ultimate resets the timer and clears that slot.
 #
-#   5. Ultimate readiness is per-weapon, per-combo-key.
-#      Completing "light heavy heavy" on the sword marks SWORD:LHH as ready.
-#      Switching to the bow does not consume or clear the sword ultimate.
-#      Pressing R (ultimate_pressed in InputSnapshot) casts the ready ultimate
-#      for the currently active weapon, if one exists.
+#   5. Damage is NEVER modified here.
 #
-# ── ULTIMATE SLOT KEYS ────────────────────────────────────────────────────────
-#   Each combo produces a key like "sword:LLH" or "bow:HHH".
-#   The 7 valid combos per weapon:
-#     LLH  LHL  LHH  HLL  HLH  HHL  HHH
-#   "LLL" is intentionally absent — no ultimate is awarded for it.
+# ── VALID COMBO KEYS ──────────────────────────────────────────────────────────
+#   LLH  LHL  LHH  HLL  HLH  HHL  HHH   (7 total, LLL excluded)
+#   Ultimate slot key format: "weapon_id:COMBO_KEY"  e.g. "sword:LLH"
 #
 # ── SCENE SETUP ───────────────────────────────────────────────────────────────
 #   Player
@@ -38,56 +35,57 @@
 extends Node
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-const CHAIN_LENGTH: int = 3
-
-# The one chain that grants no ultimate. All others do.
-const INVALID_COMBO: String = "LLL"
+const CHAIN_LENGTH:    int   = 3
+const INVALID_COMBO:   String = "LLL"
+const EXPIRY_SECONDS:  float  = 3.5   # inactivity window before chain + slots clear
 
 # ── Chain state ───────────────────────────────────────────────────────────────
-# Confirmed-hit chain for the current weapon. Entries: "L" or "H".
 var _chain: Array[String] = []
-
-# weapon_id that owns the current chain. "" = no chain in progress.
 var _chain_weapon_id: String = ""
 
 # ── Ultimate slots ────────────────────────────────────────────────────────────
-# Maps "weapon_id:COMBO_KEY" → true when that ultimate is ready to cast.
-# Example: { "sword:LLH": true, "sword:HHH": true }
-# Persists across weapon switches — earning an ultimate with the sword while
-# holding the bow does not erase it (and vice versa).
+# "weapon_id:COMBO_KEY" → true
+# Persists across weapon switches.
 var _ultimate_slots: Dictionary = {}
 
+# ── Expiry timer ──────────────────────────────────────────────────────────────
+# Tracks seconds since the last relevant activity (confirmed hit or ultimate earned).
+# Counts up each _process() frame. Resets to 0.0 on activity. When it crosses
+# EXPIRY_SECONDS, chain and all ultimate slots are cleared.
+var _inactivity_timer: float = 0.0
+var _timer_running: bool     = false   # only ticks when there's something to expire
+
+
 # ── Signals ───────────────────────────────────────────────────────────────────
-
-# Fired when a 3-hit valid combo completes and its ultimate slot becomes ready.
-# weapon_id: which weapon earned it.   combo_key: e.g. "LLH"
 signal ultimate_ready(weapon_id: String, combo_key: String)
-
-# Fired when the player successfully casts an ultimate.
 signal ultimate_cast(weapon_id: String, combo_key: String)
-
-# Fired whenever the in-progress chain changes (for HUD updates).
-# current_chain is a copy of _chain.
 signal chain_updated(current_chain: Array)
-
-# Fired when the chain resets for any reason.
 signal chain_cleared()
+signal combo_expired()   # fired when the expiry timer elapses
 
 
-# ── Public API — called by CombatController ───────────────────────────────────
+# ── Expiry tick ───────────────────────────────────────────────────────────────
+func _process(delta: float) -> void:
+	if not _timer_running:
+		return
 
-# Called by CombatController._query_hits() when a hit is confirmed on an enemy.
-# This is the ONLY code path that advances the chain.
+	_inactivity_timer += delta
+
+	if _inactivity_timer >= EXPIRY_SECONDS:
+		_on_expiry()
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+# Called by CombatController._query_hits() on a confirmed, unguarded hit.
 func record_hit(attack: AttackData) -> void:
-	# Weapon-switch guard: if mid-chain and a different weapon's hit slips through,
-	# reset and start fresh from this hit. weapon_switched() should have already
-	# been called, but this is a safety net.
+	# Weapon mismatch guard — safety net for edge cases
 	if _chain_weapon_id != "" and attack.weapon_id != _chain_weapon_id:
 		_reset_chain()
 
 	_chain_weapon_id = attack.weapon_id
+	_reset_inactivity_timer()   # any confirmed hit resets expiry
 
-	# Encode attack type as single character for compact combo keys
 	var token: String = "L" if attack.attack_type == "light" else "H"
 	_chain.append(token)
 	chain_updated.emit(_chain.duplicate())
@@ -99,24 +97,20 @@ func record_hit(attack: AttackData) -> void:
 		_evaluate_chain()
 
 
-# Called from player.gd when the weapon_switch input fires.
-# Clears any in-progress chain. Does NOT clear earned ultimate slots.
+# Called when the player switches weapons.
+# Clears in-progress chain. Ultimate slots are preserved.
 func weapon_switched(new_weapon_id: String) -> void:
 	if _chain.size() > 0 or _chain_weapon_id != "":
 		print("[Combo] Weapon switch → '%s' — chain cleared (ultimates preserved)."
 			% new_weapon_id)
 		_reset_chain()
-	# Note: _chain_weapon_id will be set by the next record_hit() call.
-	# We don't pre-set it here — the new weapon may not attack immediately.
+	# Timer keeps running if ultimate slots exist
 
 
-# Called from CombatController when the player presses the ultimate key (R).
-# active_weapon_id: the weapon currently held by the player.
-# Returns true if an ultimate was cast, false if none was ready.
+# Called by CombatController when the player presses R.
+# Casts the first ready ultimate for the given weapon.
+# Returns true if cast, false if nothing was ready.
 func try_cast_ultimate(active_weapon_id: String) -> bool:
-	# Find the first ready ultimate slot for this weapon.
-	# (In practice there will usually be at most one, but the system supports
-	#  earning multiple before casting.)
 	for slot_key in _ultimate_slots.keys():
 		if slot_key.begins_with(active_weapon_id + ":"):
 			var combo_key: String = slot_key.split(":")[1]
@@ -126,23 +120,27 @@ func try_cast_ultimate(active_weapon_id: String) -> bool:
 				% [active_weapon_id, combo_key])
 			ultimate_cast.emit(active_weapon_id, combo_key)
 
-			# TODO: trigger the actual ultimate ability here in a future iteration.
+			# TODO: trigger actual ability execution in a future iteration.
 			# e.g. get_parent().execute_ultimate(active_weapon_id, combo_key)
+
+			# Casting resets the inactivity timer; if more slots exist they stay alive.
+			# If no chain and no slots remain, timer will naturally expire or stop.
+			if _ultimate_slots.is_empty() and _chain.is_empty():
+				_stop_inactivity_timer()
+			else:
+				_reset_inactivity_timer()
 			return true
 
 	print("[Combo] No ultimate ready for weapon '%s'." % active_weapon_id)
 	return false
 
 
-# Returns true if there is at least one ready ultimate for the given weapon.
 func has_ultimate_ready(weapon_id: String) -> bool:
 	for slot_key in _ultimate_slots.keys():
 		if slot_key.begins_with(weapon_id + ":"):
 			return true
 	return false
 
-
-# Returns a copy of the current in-progress chain tokens (for HUD).
 func get_chain() -> Array:
 	return _chain.duplicate()
 
@@ -153,19 +151,23 @@ func get_chain_length() -> int:
 # ── Internal ──────────────────────────────────────────────────────────────────
 
 func _evaluate_chain() -> void:
-	var key: String = _chain_as_string()       # e.g. "LLH"
+	var key:    String = _chain_as_string()
 	var weapon: String = _chain_weapon_id
 
 	if key == INVALID_COMBO:
-		# LLL — no ultimate, just clear silently
-		print("[Combo] Chain '%s' on '%s' — no ultimate (LLL is not a valid combo)."
+		print("[Combo] Chain '%s' on '%s' — no ultimate (LLL excluded by design)."
 			% [key, weapon])
 		_reset_chain()
+		# Timer keeps running if ultimate slots exist; otherwise stop.
+		if _ultimate_slots.is_empty():
+			_stop_inactivity_timer()
 		return
 
-	# Valid combo — mark ultimate slot as ready
 	var slot_key: String = weapon + ":" + key
 	_ultimate_slots[slot_key] = true
+
+	# Earning an ultimate resets the expiry window — it stays alive for another 3.5s.
+	_reset_inactivity_timer()
 
 	print("[Combo] *** ULTIMATE READY *** — weapon:%s  combo:%s  (press R to unleash)"
 		% [weapon, key])
@@ -174,13 +176,32 @@ func _evaluate_chain() -> void:
 	_reset_chain()
 
 
+func _on_expiry() -> void:
+	print("[Combo] Inactivity timeout — chain and all ultimate slots cleared.")
+	_chain.clear()
+	_chain_weapon_id = ""
+	_ultimate_slots.clear()
+	_stop_inactivity_timer()
+	combo_expired.emit()
+	chain_cleared.emit()
+
+
 func _reset_chain() -> void:
 	_chain.clear()
 	_chain_weapon_id = ""
 	chain_cleared.emit()
 
 
-# Joins the chain array into a compact string like "LLH" for key lookups.
+func _reset_inactivity_timer() -> void:
+	_inactivity_timer = 0.0
+	_timer_running    = true
+
+
+func _stop_inactivity_timer() -> void:
+	_inactivity_timer = 0.0
+	_timer_running    = false
+
+
 func _chain_as_string() -> String:
 	var s: String = ""
 	for token in _chain:

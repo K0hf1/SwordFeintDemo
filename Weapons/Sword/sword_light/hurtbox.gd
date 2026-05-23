@@ -11,6 +11,7 @@
 #   player.gd (if player can be hit): $Hurtbox.hit_received.connect(_on_hit_received)
 #
 extends Area2D
+class_name Hurtbox
 
 # Emitted by the attacker's CombatController when a hit is confirmed.
 # hit_data: HitData — contains damage, knockback, hitstun_frames, attacker ref
