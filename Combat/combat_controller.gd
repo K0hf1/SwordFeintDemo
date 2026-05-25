@@ -68,8 +68,8 @@ func _ready() -> void:
 	sword_light.attack_id           = "sword_light"
 	sword_light.weapon_id           = "sword"
 	sword_light.attack_type         = "light"
-	sword_light.startup_frames      = 10
-	sword_light.active_frames       = 1
+	sword_light.startup_frames      = 6
+	sword_light.active_frames       = 2
 	sword_light.recovery_frames     = 10
 	sword_light.damage              = 10.0
 	sword_light.knockback_force     = 220.0
@@ -83,7 +83,7 @@ func _ready() -> void:
 	sword_heavy.attack_id           = "sword_heavy"
 	sword_heavy.weapon_id           = "sword"
 	sword_heavy.attack_type         = "heavy"
-	sword_heavy.startup_frames      = 22
+	sword_heavy.startup_frames      = 16
 	sword_heavy.active_frames       = 3
 	sword_heavy.recovery_frames     = 18
 	sword_heavy.damage              = 18.0
@@ -378,11 +378,11 @@ func _select_attack(input: InputSnapshot) -> AttackData:
 func _get_hitbox(attack_type: String) -> Area2D:
 	match attack_type:
 		"light":
-			return _sword.get_node("LightAttack/HitboxSL")
+			return _sword.get_node("HitboxSL")
 		"heavy":
-			return _sword.get_node("HeavyAttack/HitboxSH")
+			return _sword.get_node("HitboxSH")
 		_:
-			return _sword.get_node("LightAttack/HitboxSL")
+			return _sword.get_node("HitboxSL")
 
 
 func _get_combat_controller(target: Node) -> Node:
