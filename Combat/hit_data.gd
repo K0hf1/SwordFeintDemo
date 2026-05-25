@@ -7,6 +7,9 @@
 #   is_reflected — true when this hit originated as a parry reflection.
 #                  The receiver should NOT trigger another parry on a reflected hit
 #                  (no infinite reflection loops).
+#   was_parried  — set to true by Parry.on_hit_incoming() when the hit is intercepted.
+#                  Read by CombatController._query_hits() AFTER emitting hit_received
+#                  to suppress combo credit and the HIT log for the attacker.
 #
 class_name HitData
 
@@ -17,3 +20,4 @@ var damage: float
 var knockback_vector: Vector2   # pre-computed world-space knockback impulse
 var hitstun_frames: int
 var is_reflected: bool = false  # true if this is a parry reflection — skip parry check
+var was_parried: bool  = false  # set true by Parry when successfully intercepted

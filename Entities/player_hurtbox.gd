@@ -29,4 +29,4 @@ signal hit_received(hit_data: HitData)
 func _ready() -> void:
 	monitoring  = false   # player hurtbox does not detect others
 	monitorable = true    # enemy hitboxes need to overlap us
-	add_to_group("player_hurtbox")
+	add_to_group("hurtbox")

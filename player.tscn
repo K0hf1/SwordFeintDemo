@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cnfer1yov04m3"]
 
 [ext_resource type="Script" uid="uid://b1jhuero4luwt" path="res://Entities/player.gd" id="1_7hik5"]
-[ext_resource type="Script" uid="uid://01yks70dsj2f" path="res://player_health.gd" id="2_qtqh7"]
+[ext_resource type="Script" uid="uid://01yks70dsj2f" path="res://Entities/player_health.gd" id="2_qtqh7"]
 [ext_resource type="Script" uid="uid://dsfk4ghwukwf2" path="res://Combat/parry.gd" id="3_2wuci"]
 [ext_resource type="Script" uid="uid://d4kdaqrc2wabe" path="res://Combat/input_buffer.gd" id="4_iruf7"]
 [ext_resource type="Script" uid="uid://cukcirainmw6" path="res://Combat/combat_controller.gd" id="5_j5n4i"]
@@ -14,7 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://wl4f4m6na62i" path="res://Characters/run_left.png" id="12_khis8"]
 [ext_resource type="Texture2D" uid="uid://dlr8n128y7f6w" path="res://Characters/run_right.png" id="13_b88wv"]
 [ext_resource type="Texture2D" uid="uid://c5y5sxc7i1nel" path="res://Characters/run_up.png" id="14_pgbbb"]
-[ext_resource type="Script" uid="uid://cbkxpx6it7gs2" path="res://player_hurtbox.gd" id="15_331ug"]
+[ext_resource type="Script" uid="uid://cbkxpx6it7gs2" path="res://Entities/player_hurtbox.gd" id="15_331ug"]
 [ext_resource type="Texture2D" uid="uid://c3qrh0i1qmygp" path="res://Weapons/Sword/File 2020.png" id="16_ny14h"]
 [ext_resource type="Script" uid="uid://d25ddrwp7sfd7" path="res://Weapons/sword.gd" id="17_ibah8"]
 [ext_resource type="Texture2D" uid="uid://b7v3cdhpcfgtv" path="res://Weapons/Sword/sword_light/warrior_skill4_frame1.png" id="18_3iwfv"]
@@ -602,7 +602,7 @@ scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_w48qg")
 animation = &"idle_down"
 
-[node name="Hurtbox" type="Area2D" parent="." unique_id=182354380 groups=["player_hurtbox"]]
+[node name="Hurtbox" type="Area2D" parent="." unique_id=182354380 groups=["hurtbox"]]
 visible = false
 script = ExtResource("15_331ug")
 
