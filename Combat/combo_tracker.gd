@@ -35,10 +35,13 @@
 extends Node
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-const CHAIN_LENGTH:         int   = 3
-const INVALID_COMBO:        String = "LLL"
-const CHAIN_EXPIRY_SECONDS: float  = 3.5
-const ULT_EXPIRY_SECONDS:   float  = 3.5
+const CHAIN_LENGTH:   int = 3
+const INVALID_COMBO:  String = "LLL"
+
+# Expiry durations in physics ticks (60 Hz).
+# 210 ticks = 3.5 s — identical feel to the old float constants, now deterministic.
+const CHAIN_EXPIRY_TICKS: int = 210
+const ULT_EXPIRY_TICKS:   int = 210
 
 # ── Chain state ───────────────────────────────────────────────────────────────
 var _chain: Array[String] = []
@@ -48,12 +51,12 @@ var _chain_weapon_id: String = ""
 var _ultimate_slots: Dictionary = {}
 
 # ── Chain timer ───────────────────────────────────────────────────────────────
-var _chain_timer:         float = 0.0
-var _chain_timer_running: bool  = false
+# Absolute tick at which the chain expires. 0 means the timer is stopped.
+var _chain_expiry_tick: int = 0
 
 # ── Ultimate hold timer ───────────────────────────────────────────────────────
-var _ult_timer:         float = 0.0
-var _ult_timer_running: bool  = false
+# Absolute tick at which the held ultimate expires. 0 means the timer is stopped.
+var _ult_expiry_tick: int = 0
 
 
 # ── Signals ───────────────────────────────────────────────────────────────────
@@ -65,16 +68,15 @@ signal combo_expired()
 
 
 # ── Timer tick ────────────────────────────────────────────────────────────────
-func _process(delta: float) -> void:
-	if _chain_timer_running:
-		_chain_timer += delta
-		if _chain_timer >= CHAIN_EXPIRY_SECONDS:
-			_on_chain_expiry()
-
-	if _ult_timer_running:
-		_ult_timer += delta
-		if _ult_timer >= ULT_EXPIRY_SECONDS:
-			_on_ult_expiry()
+# Runs in the same physics step as CombatController.tick() and GameClock.
+# Comparing absolute deadlines against GameClock.tick is fully deterministic —
+# both peers compute the same expiry tick from the same input tick.
+func _physics_process(_delta: float) -> void:
+	var t: int = GameClock.tick
+	if _chain_expiry_tick > 0 and t >= _chain_expiry_tick:
+		_on_chain_expiry()
+	if _ult_expiry_tick > 0 and t >= _ult_expiry_tick:
+		_on_ult_expiry()
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -183,8 +185,8 @@ func _evaluate_chain() -> void:
 	_stop_chain_timer()
 	_reset_ult_timer()
 
-	print("[Combo] [%s] *** ULTIMATE READY *** — weapon:%s  combo:%s  (press R to unleash, %.1fs window)"
-		% [player_name, weapon, key, ULT_EXPIRY_SECONDS])
+	print("[Combo] [%s] *** ULTIMATE READY *** — weapon:%s  combo:%s  (press R to unleash, %d-tick window)"
+		% [player_name, weapon, key, ULT_EXPIRY_TICKS])
 	ultimate_ready.emit(weapon, key)
 
 
@@ -211,23 +213,19 @@ func _reset_chain() -> void:
 
 
 func _reset_chain_timer() -> void:
-	_chain_timer         = 0.0
-	_chain_timer_running = true
+	_chain_expiry_tick = GameClock.tick + CHAIN_EXPIRY_TICKS
 
 
 func _stop_chain_timer() -> void:
-	_chain_timer         = 0.0
-	_chain_timer_running = false
+	_chain_expiry_tick = 0
 
 
 func _reset_ult_timer() -> void:
-	_ult_timer         = 0.0
-	_ult_timer_running = true
+	_ult_expiry_tick = GameClock.tick + ULT_EXPIRY_TICKS
 
 
 func _stop_ult_timer() -> void:
-	_ult_timer         = 0.0
-	_ult_timer_running = false
+	_ult_expiry_tick = 0
 
 
 func _chain_as_string() -> String:
