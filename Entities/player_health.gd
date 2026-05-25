@@ -56,11 +56,20 @@ func _ready() -> void:
 # flash_reflected: pass true when this is a reflected hit so we flash the
 # attacker's sprite instead of our own.
 func apply_hit(hit: HitData, flash_reflected: bool = false) -> void:
-	var flash_target: AnimatedSprite2D
-	if flash_reflected:
-		flash_target = _get_anim_of(hit.attacker)
-	else:
-		flash_target = _anim
+	# flash_target is always _anim (this player's own sprite).
+	#
+	# Why: apply_hit() runs on the player who is TAKING damage — that is always
+	# the correct sprite to flash, whether the hit is a normal attack or a parry
+	# reflection. On a reflection, the reflected HitData is emitted on the
+	# original ATTACKER's hurtbox, so their CombatController calls THEIR OWN
+	# _health.apply_hit() — meaning _anim here is already the attacker's sprite.
+	#
+	# The old flash_reflected branch fetched hit.attacker (the parry caster, as
+	# set in parry.gd: reflected.attacker = get_parent()) and flashed them
+	# instead — the exact opposite of what we want.
+	var flash_target: AnimatedSprite2D = _anim
+	@warning_ignore("unused_parameter")
+	var _unused := flash_reflected  # kept in signature for call-site compatibility
 
 	var effective_damage := hit.damage
 	if _combat.is_guarding:
