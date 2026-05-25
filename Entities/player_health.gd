@@ -7,16 +7,25 @@
 # only needs to track the number.
 #
 # ── Death & Respawn ───────────────────────────────────────────────────────────
-# When HP reaches zero, the player emits player_died, then after a short flash
-# the player node is removed from the scene. ArenaTest listens to player_died
-# and schedules a respawn after 2 seconds.
+# When HP reaches zero, player_died is emitted and _is_dead is set. The player
+# node plays a death flash then is removed. ArenaTest respawns after 2 seconds.
+#
+# ── Hit flash ─────────────────────────────────────────────────────────────────
+# Normal hits:    white overbright flash on THIS player (the one taking damage).
+# Parry reflects: white overbright flash on the ATTACKER (hit.attacker).
+#                 Reflected HitData has is_reflected = true. HP and hitstun are
+#                 still applied to the attacker via the normal path — the flash
+#                 just targets hit.attacker's Body sprite instead of ours.
 #
 extends Node
 class_name PlayerHealth
 
-@export var max_hp: float = 20.0
+@export var max_hp: float = 150.0
 
 var hp: float = max_hp
+
+# Set true the moment HP hits zero. Read by player.gd to freeze all input/physics.
+var is_dead: bool = false
 
 const GUARD_DAMAGE_MULTIPLIER: float = 0.35
 
@@ -37,12 +46,21 @@ func _ready() -> void:
 
 # ── Incoming hit ──────────────────────────────────────────────────────────────
 func _on_hit_incoming(hit: HitData) -> void:
-	# Parried hits and reflected hits are never applied to this player's HP.
-	if hit.is_reflected:
-		return
-	# was_parried means the parry system already suppressed this — skip.
+	# Skip hits that were parried before reaching us (parry already blocked them
+	# in CombatController; this signal should never fire for parried hits, but
+	# guard here as a safety net).
 	if hit.was_parried:
 		return
+
+	# Reflected hits: the attacker receives their damage back.
+	# Flash the ATTACKER's sprite (not ours), then apply damage normally.
+	# Do NOT skip — the attacker must take HP damage from the reflection.
+	var flash_target: AnimatedSprite2D
+	if hit.is_reflected:
+		# Flash the attacker's Body sprite to show they were hurt by the reflect.
+		flash_target = _get_anim_of(hit.attacker)
+	else:
+		flash_target = _anim
 
 	var effective_damage := hit.damage
 	if _combat.is_guarding:
@@ -57,43 +75,53 @@ func _on_hit_incoming(hit: HitData) -> void:
 
 	health_changed.emit(hp, max_hp)
 
-	# Flash white to indicate damage — same as dummy.gd
-	_flash_hit()
+	if flash_target != null:
+		_flash_hit(flash_target)
 
 	if hp <= 0.0:
 		_on_died()
 
 
 # ── Hit flash ─────────────────────────────────────────────────────────────────
-func _flash_hit() -> void:
-	_anim.modulate = Color.WHITE * 3.0
+func _flash_hit(target_anim: AnimatedSprite2D) -> void:
+	target_anim.modulate = Color.WHITE * 3.0
 	await get_tree().create_timer(0.08).timeout
-	# Guard: player may have been freed during the await
-	if is_instance_valid(_anim):
-		_anim.modulate = Color.WHITE
+	if is_instance_valid(target_anim):
+		target_anim.modulate = Color.WHITE
+
+
+# Returns the AnimatedSprite2D named "Body" on the given player node, or null.
+func _get_anim_of(player_node: Node) -> AnimatedSprite2D:
+	if player_node == null:
+		return null
+	return player_node.get_node_or_null("Body") as AnimatedSprite2D
 
 
 # ── Death ─────────────────────────────────────────────────────────────────────
 func _on_died() -> void:
+	if is_dead:
+		return   # guard against double-trigger
+	is_dead = true
+
 	var player_name: String = get_parent().name if get_parent() else "?"
 	print("[PlayerHealth] [%s] Defeated — removing from scene." % player_name)
 	player_died.emit()
-	# Brief death flash before removal
 	_death_flash_and_remove()
 
 
 func _death_flash_and_remove() -> void:
-	# Flash rapidly three times then queue_free
+	# Flash red three times then free the player node.
 	for i in 3:
-		_anim.modulate = Color(1.0, 0.2, 0.2, 1.0)   # red tint
+		if not is_instance_valid(_anim):
+			return
+		_anim.modulate = Color(1.0, 0.2, 0.2, 1.0)
 		await get_tree().create_timer(0.1).timeout
 		if not is_instance_valid(_anim):
 			return
 		_anim.modulate = Color.TRANSPARENT
 		await get_tree().create_timer(0.1).timeout
-		if not is_instance_valid(get_parent()):
-			return
-	get_parent().queue_free()
+	if is_instance_valid(get_parent()):
+		get_parent().queue_free()
 
 
 # ── Public queries ────────────────────────────────────────────────────────────

@@ -94,6 +94,14 @@ func _ready() -> void:
 
 	_hurtbox.hit_received.connect(_on_hit_incoming)
 
+	# Wire parry signals once here — NOT in _enter_parrying().
+	# Connecting inside _enter_parrying() was safe only as long as begin_parry()
+	# always succeeded. When it returns false (cooldown), the state was already
+	# set to PARRYING with no window open and no whiff signal ever firing —
+	# permanently freezing the player. Wiring here avoids the conditional entirely.
+	_parry.parry_whiff.connect(_on_parry_ended)
+	_parry.parry_success.connect(_on_parry_success)
+
 	_get_hitbox("light").monitoring = false
 	_get_hitbox("heavy").monitoring = false
 
@@ -219,12 +227,13 @@ func _enter_idle() -> void:
 
 
 func _enter_parrying() -> void:
+	# Only enter PARRYING state if the window actually opens.
+	# begin_parry() returns false when on cooldown or already active.
+	# Setting combat_state = PARRYING without an open window means parry_whiff
+	# never fires, _on_parry_ended never runs, and the player freezes permanently.
+	if not _parry.begin_parry(tick_counter):
+		return   # on cooldown — stay in IDLE, do nothing
 	combat_state = CombatState.PARRYING
-	_parry.begin_parry(tick_counter)
-	if not _parry.parry_whiff.is_connected(_on_parry_ended):
-		_parry.parry_whiff.connect(_on_parry_ended)
-	if not _parry.parry_success.is_connected(_on_parry_success):
-		_parry.parry_success.connect(_on_parry_success)
 	print("[Combat] [%s] PARRYING — tick:%d" % [_player.name, tick_counter])
 
 

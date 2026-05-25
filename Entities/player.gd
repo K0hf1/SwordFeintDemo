@@ -1,43 +1,32 @@
 # player.gd
 # Physics orchestrator and state host.
 #
-# ── What changed from the original ───────────────────────────────────────────
+# ── Input provider ────────────────────────────────────────────────────────────
 # Direct Input.* polling has been removed entirely.
-# Player now receives input through a provider object assigned at spawn time.
+# Player receives input through a provider assigned at spawn time.
 # Call set_input_provider(LocalInputProvider.new(profile)) before the first tick.
-# For future network players, pass a RemoteInputProvider instead — Player.gd
-# is identical in both cases.
+# For future network players, pass a RemoteInputProvider — Player.gd is identical.
+#
+# ── Death freeze ──────────────────────────────────────────────────────────────
+# When PlayerHealth.is_dead becomes true (HP <= 0), _physics_process returns
+# immediately after zeroing velocity. No movement, no combat ticks, no input.
+# The death flash and queue_free are handled entirely by PlayerHealth.
+#
+# ── P1 can't move left when P2 holds Shift (guard) + Arrow keys ──────────────
+# This is keyboard ghosting: a hardware/OS limitation on same-machine play.
+# When multiple keys are held simultaneously, some key matrices block additional
+# keys from registering. Shift + Arrow + A is a common ghosting triplet.
+# THIS IS NOT A BUG IN THIS CODE. It will NOT occur in peer-to-peer networking
+# because each player polls their own machine's keyboard independently.
+# Workarounds for local play only:
+#   - Remap P2 guard to a non-modifier key (e.g. Numpad 0)
+#   - Use gamepads for one or both players
 #
 # ── Responsibilities ─────────────────────────────────────────────────────────
 #   - Physics / movement / dash
 #   - Forwarding InputSnapshot to CombatController each tick
 #   - Animation
 #   - Hosting child systems (CombatController, ComboTracker, Parry, etc.)
-#
-# ── Does NOT own ─────────────────────────────────────────────────────────────
-#   - Input polling (LocalInputProvider / RemoteInputProvider)
-#   - Combat state machine (CombatController)
-#   - Combo chain (ComboTracker)
-#   - Health (PlayerHealth)
-#
-# ── Scene node setup ──────────────────────────────────────────────────────────
-#   Player (CharacterBody2D)         ← this script
-#     ├── CollisionShape2D
-#     ├── Body             (AnimatedSprite2D)
-#     ├── InputBuffer      (Node — kept for receive_snapshot() networking path)
-#     ├── CombatController (Node)
-#     ├── ComboTracker     (Node)
-#     ├── Parry            (Node)
-#     ├── Hurtbox          (Area2D + PlayerHurtbox script)
-#     │     └── CollisionShape2D
-#     ├── WeaponDisplay    (Node2D)
-#     │     └── SwordIcon
-#     └── WeaponHolder     (Node2D)
-#           └── Sword (Node2D)
-#               ├── LightAttack (AnimatedSprite2D)
-#               │     └── HitboxSL (Area2D)
-#               └── HeavyAttack (AnimatedSprite2D)
-#                     └── HitboxSH (Area2D)
 #
 extends CharacterBody2D
 
@@ -52,14 +41,10 @@ extends CharacterBody2D
 # ── Node refs ─────────────────────────────────────────────────────────────────
 @onready var _anim:   AnimatedSprite2D = $Body
 @onready var _combat: Node             = $CombatController
+@onready var _health: Node             = $PlayerHealth
 
 # ── Input provider ────────────────────────────────────────────────────────────
-# Set before first tick via set_input_provider().
-# Null-safe: if never set, player produces a blank InputSnapshot every tick
-# (stays still, no actions). Useful for testing and spectator slots.
-var _input_provider: LocalInputProvider = null   # typed for autocompletion;
-												  # duck-typed at runtime so
-												  # RemoteInputProvider works too
+var _input_provider: LocalInputProvider = null
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var last_dir_vector:    Vector2 = Vector2.DOWN
@@ -76,29 +61,30 @@ var _dash_attack_lockout_until:int  = -999
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 func _ready() -> void:
-	# MOTION_MODE_FLOATING: move_and_slide does not compute a "floor" normal.
-	# In GROUNDED mode (default), when two players collide, Godot projects the
-	# collision normal onto both bodies' velocities. A player standing still gets
-	# an implicit leftward or rightward push from the resolution — this is what
-	# caused P1 to be unable to move left when P2 was guarding nearby.
-	# FLOATING mode resolves collisions as pure separation vectors with no axis
-	# projection, so a stationary player is never dragged by a moving one.
+	# MOTION_MODE_FLOATING prevents move_and_slide from projecting collision
+	# normals onto velocity, which would cause a stationary player to be dragged
+	# sideways when another player's CharacterBody2D resolution fires.
 	motion_mode = MOTION_MODE_FLOATING
 
-# Called by ArenaTest (or any spawner) immediately after add_child().
-# Must be called before the first _physics_process tick.
 func set_input_provider(provider) -> void:
 	_input_provider = provider
 
 
 # ── Main tick ─────────────────────────────────────────────────────────────────
 func _physics_process(_delta: float) -> void:
+	# ── Dead freeze ───────────────────────────────────────────────────────────
+	# Once HP reaches zero, PlayerHealth sets is_dead = true. We stop all
+	# processing immediately — no input, no combat, no movement — and zero out
+	# velocity so the body doesn't coast. PlayerHealth handles the visual death
+	# sequence and queue_free in its own coroutine.
+	if _health != null and (_health as PlayerHealth).is_dead:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	_tick += 1
 
-	# 1. Build this tick's InputSnapshot from the provider.
-	#    LocalInputProvider reads keyboard/mouse.
-	#    RemoteInputProvider returns the last received network snapshot.
-	#    If no provider is set, use a blank snapshot (no inputs).
+	# 1. Build InputSnapshot
 	var input: InputSnapshot
 	if _input_provider != null:
 		input = _input_provider.build_snapshot(_tick, global_position, get_viewport())
@@ -106,14 +92,14 @@ func _physics_process(_delta: float) -> void:
 		input = InputSnapshot.new()
 		input.tick = _tick
 
-	# 2. Aim direction (read by CombatController for sword orientation)
+	# 2. Aim direction
 	last_aim_direction = input.aim_direction
 
 	# 3. Dash — guard suppresses dash
 	if not input.guard_held:
 		_handle_dash_input(input)
 
-	# 4. Combat tick (weapon switch, parry, ultimate, attacks)
+	# 4. Combat tick
 	_combat.tick(input, _is_dash_attack_locked())
 
 	# 5. Movement
