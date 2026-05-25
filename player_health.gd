@@ -26,7 +26,7 @@
 extends Node
 class_name PlayerHealth
 
-@export var max_hp: float = 100.0
+@export var max_hp: float = 150.0
 
 var hp: float = max_hp
 

@@ -245,7 +245,7 @@ func _enter_idle() -> void:
 	hit_this_swing.clear()
 	current_attack = null
 	_active_hitbox = null
-	_sword.visible = false
+	_sword.reset()   # hides both attack branches cleanly; was _sword.visible = false
 	print("[Combat] IDLE — tick:%d" % tick_counter)
 
 

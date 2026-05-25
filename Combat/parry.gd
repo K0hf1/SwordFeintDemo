@@ -41,7 +41,7 @@ const PARRY_WINDOW_FRAMES: int = 12
 # Cooldown between parry attempts (seconds). Prevents spam.
 # At 60Hz: 1.5s = 90 ticks, but we track this in real time via _process
 # so it works regardless of physics tick rate.
-const PARRY_COOLDOWN_SECONDS: float = 1.5
+const PARRY_COOLDOWN_SECONDS: float = 2.5
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var _is_active:       bool = false
