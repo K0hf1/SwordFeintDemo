@@ -19,6 +19,11 @@ config/icon="res://icon.svg"
 
 GameClock="*uid://cvdrtsxfen2ue"
 
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
 [global_group]
 
 player=""
