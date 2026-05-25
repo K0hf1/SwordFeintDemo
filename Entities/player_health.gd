@@ -6,38 +6,24 @@
 # effective_damage has been calculated and hitstun has been entered — this node
 # only needs to track the number.
 #
-# ── Why separate from CombatController? ──────────────────────────────────────
-# CombatController owns combat STATE (startup/active/recovery/hitstun/parry).
-# Health is persistent data that outlives any single attack exchange.
-# Keeping them separate means UI, save data, and death logic never touch
-# the combat state machine.
-#
-# ── Signal chain (incoming hit) ──────────────────────────────────────────────
-#   Enemy hitbox overlaps Player Hurtbox
-#     → attacker CombatController emits Hurtbox.hit_received(hit)
-#       → CombatController._on_hit_incoming(hit)   [RPS resolve, hitstun]
-#         → PlayerHealth._on_hit_incoming(hit)      [HP subtract, death check]
-#
-# ── Scene placement ───────────────────────────────────────────────────────────
-#   Player (CharacterBody2D)
-#     ├── Hurtbox (Area2D + PlayerHurtbox script)
-#     └── PlayerHealth (Node)  ← this script
+# ── Death & Respawn ───────────────────────────────────────────────────────────
+# When HP reaches zero, the player emits player_died, then after a short flash
+# the player node is removed from the scene. ArenaTest listens to player_died
+# and schedules a respawn after 2 seconds.
 #
 extends Node
 class_name PlayerHealth
 
-@export var max_hp: float = 150.0
+@export var max_hp: float = 20.0
 
 var hp: float = max_hp
 
-# Guard multiplier must match CombatController.GUARD_DAMAGE_MULTIPLIER.
-# Duplicated here so PlayerHealth can compute the correct effective damage
-# independently — change both if you tune the value.
 const GUARD_DAMAGE_MULTIPLIER: float = 0.35
 
 # ── Node refs ─────────────────────────────────────────────────────────────────
-@onready var _hurtbox:  PlayerHurtbox = $"../Hurtbox"
-@onready var _combat:   Node          = $"../CombatController"
+@onready var _hurtbox:  PlayerHurtbox    = $"../Hurtbox"
+@onready var _combat:   Node             = $"../CombatController"
+@onready var _anim:     AnimatedSprite2D = $"../Body"
 
 # ── Signals ───────────────────────────────────────────────────────────────────
 signal health_changed(new_hp: float, max_hp: float)
@@ -50,18 +36,12 @@ func _ready() -> void:
 
 
 # ── Incoming hit ──────────────────────────────────────────────────────────────
-# Called AFTER CombatController has resolved parry / armor / guard and entered
-# hitstun. This handler only needs to subtract HP.
-#
-# NOTE: Guard damage reduction is applied here to keep health authoritative.
-# CombatController.is_guarding is read directly so we don't need a parameter.
 func _on_hit_incoming(hit: HitData) -> void:
-	# Parry check — if CombatController already returned early (parried),
-	# this signal was never emitted, so no guard needed here.
-
-	# Skip reflected hits that were already handled by the parry reflect path
-	# (they are emitted on the ATTACKER's hurtbox, not the player's — but just in case).
+	# Parried hits and reflected hits are never applied to this player's HP.
 	if hit.is_reflected:
+		return
+	# was_parried means the parry system already suppressed this — skip.
+	if hit.was_parried:
 		return
 
 	var effective_damage := hit.damage
@@ -71,20 +51,49 @@ func _on_hit_incoming(hit: HitData) -> void:
 	hp -= effective_damage
 	hp  = max(hp, 0.0)
 
-	print("[PlayerHealth] HP: %.1f / %.1f  (took %.1f from %s)"
-		% [hp, max_hp, effective_damage, hit.attacker.name])
+	var player_name: String = get_parent().name if get_parent() else "?"
+	print("[PlayerHealth] [%s] HP: %.1f / %.1f  (took %.1f from %s)"
+		% [player_name, hp, max_hp, effective_damage, hit.attacker.name])
 
 	health_changed.emit(hp, max_hp)
+
+	# Flash white to indicate damage — same as dummy.gd
+	_flash_hit()
 
 	if hp <= 0.0:
 		_on_died()
 
 
+# ── Hit flash ─────────────────────────────────────────────────────────────────
+func _flash_hit() -> void:
+	_anim.modulate = Color.WHITE * 3.0
+	await get_tree().create_timer(0.08).timeout
+	# Guard: player may have been freed during the await
+	if is_instance_valid(_anim):
+		_anim.modulate = Color.WHITE
+
+
 # ── Death ─────────────────────────────────────────────────────────────────────
 func _on_died() -> void:
-	print("[PlayerHealth] Player defeated.")
+	var player_name: String = get_parent().name if get_parent() else "?"
+	print("[PlayerHealth] [%s] Defeated — removing from scene." % player_name)
 	player_died.emit()
-	# TODO: trigger death animation, respawn, game-over screen, etc.
+	# Brief death flash before removal
+	_death_flash_and_remove()
+
+
+func _death_flash_and_remove() -> void:
+	# Flash rapidly three times then queue_free
+	for i in 3:
+		_anim.modulate = Color(1.0, 0.2, 0.2, 1.0)   # red tint
+		await get_tree().create_timer(0.1).timeout
+		if not is_instance_valid(_anim):
+			return
+		_anim.modulate = Color.TRANSPARENT
+		await get_tree().create_timer(0.1).timeout
+		if not is_instance_valid(get_parent()):
+			return
+	get_parent().queue_free()
 
 
 # ── Public queries ────────────────────────────────────────────────────────────
