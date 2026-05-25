@@ -34,7 +34,7 @@ extends Node
 
 # How long the parry window stays open (in physics ticks at 60Hz).
 # 12 ticks ≈ 200ms — tight but learnable. Tune to taste.
-const PARRY_WINDOW_FRAMES: int = 12
+const PARRY_WINDOW_FRAMES: int = 5
 
 # Cooldown between parry attempts (seconds). Prevents spam.
 const PARRY_COOLDOWN_SECONDS: float = 2.5

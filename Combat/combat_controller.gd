@@ -9,6 +9,12 @@
 # ── DOES NOT OWN ──────────────────────────────────────────────────────────────
 #   Movement, rendering, input collection, combo chain tracking.
 #
+# ── SHARED TICK CLOCK ─────────────────────────────────────────────────────────
+# The old local `tick_counter` field has been removed. All tick reads go through
+# GameClock.tick (autoload, see game_clock.gd). Both players always reference the
+# same counter, so frame data absolute values (startup_end_tick, active_end_tick,
+# recovery_end_tick) mean the same real-world moment on every peer.
+#
 # ── RPS SYSTEM ────────────────────────────────────────────────────────────────
 #   HEAVY beats LIGHT:
 #     If this player is in an ARMORED (heavy) ACTIVE state and a light hitbox
@@ -34,7 +40,7 @@ extends Node
 enum CombatState { IDLE, STARTUP, ACTIVE, RECOVERY, HITSTUN, PARRYING }
 
 var combat_state: CombatState = CombatState.IDLE
-var tick_counter: int = 0
+# tick_counter removed — use GameClock.tick (autoload) for all tick reads.
 
 # ── Current attack ────────────────────────────────────────────────────────────
 var current_attack: AttackData = null
@@ -68,8 +74,8 @@ func _ready() -> void:
 	sword_light.attack_id           = "sword_light"
 	sword_light.weapon_id           = "sword"
 	sword_light.attack_type         = "light"
-	sword_light.startup_frames      = 10
-	sword_light.active_frames       = 1
+	sword_light.startup_frames      = 6
+	sword_light.active_frames       = 2
 	sword_light.recovery_frames     = 10
 	sword_light.damage              = 10.0
 	sword_light.knockback_force     = 220.0
@@ -83,7 +89,7 @@ func _ready() -> void:
 	sword_heavy.attack_id           = "sword_heavy"
 	sword_heavy.weapon_id           = "sword"
 	sword_heavy.attack_type         = "heavy"
-	sword_heavy.startup_frames      = 22
+	sword_heavy.startup_frames      = 16
 	sword_heavy.active_frames       = 3
 	sword_heavy.recovery_frames     = 18
 	sword_heavy.damage              = 18.0
@@ -109,7 +115,9 @@ func _ready() -> void:
 
 # ── Main tick ─────────────────────────────────────────────────────────────────
 func tick(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
-	tick_counter += 1
+	# Read the shared clock — do NOT increment here. GameClock autoload
+	# advances the counter once per physics frame before any player runs.
+	var t: int = GameClock.tick
 
 	is_guarding = input.guard_held
 
@@ -120,7 +128,7 @@ func tick(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
 		_combo.try_cast_ultimate(active_weapon_id)
 
 	if _parry.is_active():
-		_parry.tick_parry_window(tick_counter)
+		_parry.tick_parry_window(t)
 
 	_process_combat_state(input, dash_attack_locked)
 
@@ -154,6 +162,7 @@ func _get_next_weapon_id() -> String:
 
 # ── State machine ─────────────────────────────────────────────────────────────
 func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = false) -> void:
+	var t: int = GameClock.tick
 	match combat_state:
 
 		CombatState.IDLE:
@@ -165,20 +174,20 @@ func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = fals
 				_begin_attack(attacks[active_weapon_id + "_light"])
 
 		CombatState.STARTUP:
-			if tick_counter >= current_attack.startup_end_tick:
+			if t >= current_attack.startup_end_tick:
 				_enter_active()
 
 		CombatState.ACTIVE:
 			_query_hits()
-			if tick_counter >= current_attack.active_end_tick:
+			if t >= current_attack.active_end_tick:
 				_enter_recovery()
 
 		CombatState.RECOVERY:
-			if tick_counter >= current_attack.recovery_end_tick:
+			if t >= current_attack.recovery_end_tick:
 				_enter_idle()
 
 		CombatState.HITSTUN:
-			if tick_counter >= _hitstun_end_tick:
+			if t >= _hitstun_end_tick:
 				_enter_idle()
 
 		CombatState.PARRYING:
@@ -188,7 +197,7 @@ func _process_combat_state(input: InputSnapshot, dash_attack_locked: bool = fals
 # ── State transitions ─────────────────────────────────────────────────────────
 func _begin_attack(data: AttackData) -> void:
 	current_attack = data
-	current_attack.compute_ticks(tick_counter)
+	current_attack.compute_ticks(GameClock.tick)
 	hit_this_swing.clear()
 	combat_state = CombatState.STARTUP
 
@@ -206,14 +215,14 @@ func _enter_active() -> void:
 	combat_state = CombatState.ACTIVE
 	if _active_hitbox:
 		_active_hitbox.monitoring = true
-	print("[Combat] [%s] ACTIVE — tick:%d  armored:%s" % [_player.name, tick_counter, str(current_attack.is_armored)])
+	print("[Combat] [%s] ACTIVE — tick:%d  armored:%s" % [_player.name, GameClock.tick, str(current_attack.is_armored)])
 
 
 func _enter_recovery() -> void:
 	combat_state = CombatState.RECOVERY
 	if _active_hitbox:
 		_active_hitbox.monitoring = false
-	print("[Combat] [%s] RECOVERY — tick:%d" % [_player.name, tick_counter])
+	print("[Combat] [%s] RECOVERY — tick:%d" % [_player.name, GameClock.tick])
 
 
 func _enter_idle() -> void:
@@ -224,7 +233,7 @@ func _enter_idle() -> void:
 	current_attack = null
 	_active_hitbox = null
 	_sword.visible = false
-	print("[Combat] [%s] IDLE — tick:%d" % [_player.name, tick_counter])
+	print("[Combat] [%s] IDLE — tick:%d" % [_player.name, GameClock.tick])
 
 
 func _enter_parrying() -> void:
@@ -232,10 +241,10 @@ func _enter_parrying() -> void:
 	# begin_parry() returns false when on cooldown or already active.
 	# Setting combat_state = PARRYING without an open window means parry_whiff
 	# never fires, _on_parry_ended never runs, and the player freezes permanently.
-	if not _parry.begin_parry(tick_counter):
+	if not _parry.begin_parry(GameClock.tick):
 		return   # on cooldown — stay in IDLE, do nothing
 	combat_state = CombatState.PARRYING
-	print("[Combat] [%s] PARRYING — tick:%d" % [_player.name, tick_counter])
+	print("[Combat] [%s] PARRYING — tick:%d" % [_player.name, GameClock.tick])
 
 
 func _on_parry_ended() -> void:
@@ -361,7 +370,7 @@ func enter_hitstun(frames: int) -> void:
 	combat_state = CombatState.HITSTUN
 	if _active_hitbox:
 		_active_hitbox.monitoring = false
-	_hitstun_end_tick = tick_counter + frames
+	_hitstun_end_tick = GameClock.tick + frames
 	hit_this_swing.clear()
 	print("[Combat] [%s] HITSTUN for %d frames" % [_player.name, frames])
 
@@ -378,18 +387,19 @@ func _select_attack(input: InputSnapshot) -> AttackData:
 func _get_hitbox(attack_type: String) -> Area2D:
 	match attack_type:
 		"light":
-			return _sword.get_node("LightAttack/HitboxSL")
+			return _sword.get_node("HitboxSL")
 		"heavy":
-			return _sword.get_node("HeavyAttack/HitboxSH")
+			return _sword.get_node("HitboxSH")
 		_:
-			return _sword.get_node("LightAttack/HitboxSL")
+			return _sword.get_node("HitboxSL")
 
 
 func _get_combat_controller(target: Node) -> Node:
-	for child in target.get_children():
-		if child.get_script() != null and child.name == "CombatController":
-			return child
-	return null
+	# Typed direct lookup — immune to child reordering and unaffected by
+	# whether the node has a script attached. If the node is ever renamed in
+	# the editor this returns null (and the null-guard in _query_hits handles
+	# it) rather than silently succeeding on the wrong node.
+	return target.get_node_or_null("CombatController")
 
 
 func _dir_suffix(dir: Vector2) -> String:

@@ -14,8 +14,8 @@ extends Node2D
 
 @onready var light_anim:  AnimatedSprite2D = $LightAttack
 @onready var heavy_anim:  AnimatedSprite2D = $HeavyAttack
-@onready var light_hitbox: Area2D = $LightAttack/HitboxSL
-@onready var heavy_hitbox: Area2D = $HeavyAttack/HitboxSH   # was wrongly $LightAttack/HitboxSH
+@onready var light_hitbox: Area2D = $HitboxSL
+@onready var heavy_hitbox: Area2D = $HitboxSH
 
 
 func _ready() -> void:

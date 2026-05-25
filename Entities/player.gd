@@ -12,6 +12,15 @@
 # immediately after zeroing velocity. No movement, no combat ticks, no input.
 # The death flash and queue_free are handled entirely by PlayerHealth.
 #
+# ── Shared tick clock ─────────────────────────────────────────────────────────
+# The old local `_tick` counter has been removed. All tick reads now go through
+# GameClock.tick — the authoritative shared counter (see game_clock.gd).
+# Both players on the same machine (local play) read the same value within a
+# frame because GameClock._physics_process runs before Player (process_priority
+# -10). In multiplayer, the host advances GameClock via RPC so clients also
+# share the same counter, making frame data (startup_end_tick, etc.) meaningful
+# on every peer.
+#
 # ── P1 can't move left when P2 holds Shift (guard) + Arrow keys ──────────────
 # This is keyboard ghosting: a hardware/OS limitation on same-machine play.
 # When multiple keys are held simultaneously, some key matrices block additional
@@ -50,7 +59,7 @@ var _input_provider: LocalInputProvider = null
 var last_dir_vector:    Vector2 = Vector2.DOWN
 var last_aim_direction: Vector2 = Vector2.DOWN
 
-var _tick: int = 0
+# NOTE: there is no local _tick here. Use GameClock.tick everywhere.
 
 var _dash_active:              bool = false
 var _dash_tick_start:          int  = -999
@@ -82,15 +91,17 @@ func _physics_process(_delta: float) -> void:
 		move_and_slide()
 		return
 
-	_tick += 1
+	# GameClock.tick is the shared authoritative counter (advanced by GameClock
+	# autoload before this node runs). Do NOT increment a local counter here.
+	var current_tick: int = GameClock.tick
 
 	# 1. Build InputSnapshot
 	var input: InputSnapshot
 	if _input_provider != null:
-		input = _input_provider.build_snapshot(_tick, global_position, get_viewport())
+		input = _input_provider.build_snapshot(current_tick, global_position, get_viewport())
 	else:
 		input = InputSnapshot.new()
-		input.tick = _tick
+		input.tick = current_tick
 
 	# 2. Aim direction
 	last_aim_direction = input.aim_direction
@@ -119,27 +130,29 @@ func _physics_process(_delta: float) -> void:
 func _handle_dash_input(input: InputSnapshot) -> void:
 	if not input.dash_pressed:
 		return
-	if _dash_active or _tick < _dash_cooldown_until or _combat.is_busy():
+	var current_tick: int = GameClock.tick
+	if _dash_active or current_tick < _dash_cooldown_until or _combat.is_busy():
 		return
 	_dash_active     = true
-	_dash_tick_start = _tick
+	_dash_tick_start = current_tick
 	_dash_dir        = last_dir_vector if last_dir_vector != Vector2.ZERO else Vector2.DOWN
 
 
 func _tick_dash() -> void:
-	var elapsed := _tick - _dash_tick_start
+	var current_tick: int = GameClock.tick
+	var elapsed := current_tick - _dash_tick_start
 	if elapsed < dash_frames:
 		velocity = _dash_dir * dash_force
 		move_and_slide()
 	else:
 		_dash_active               = false
-		_dash_cooldown_until       = _tick + dash_cooldown_frames
-		_dash_attack_lockout_until = _tick + dash_attack_lockout_frames
+		_dash_cooldown_until       = current_tick + dash_cooldown_frames
+		_dash_attack_lockout_until = current_tick + dash_attack_lockout_frames
 		velocity = Vector2.ZERO
 
 
 func _is_dash_attack_locked() -> bool:
-	return _tick < _dash_attack_lockout_until
+	return GameClock.tick < _dash_attack_lockout_until
 
 
 # ── Movement ──────────────────────────────────────────────────────────────────

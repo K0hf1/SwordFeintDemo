@@ -25,6 +25,7 @@
 [ext_resource type="Texture2D" uid="uid://bdt26mc3jx4vc" path="res://Weapons/Sword/sword_light/warrior_skill4_frame6.png" id="23_vl8ci"]
 [ext_resource type="Texture2D" uid="uid://6pnbbqckphgu" path="res://Weapons/Sword/sword_light/warrior_skill4_frame7.png" id="24_ieltc"]
 [ext_resource type="Script" uid="uid://d0xinfbj4u4hi" path="res://Weapons/Sword/sword_light/hitbox_sl.gd" id="25_fddr8"]
+[ext_resource type="Texture2D" uid="uid://p1j8genmtusg" path="res://Weapons/Sword/sword_heavy/SH-sheet.png" id="25_qtqh7"]
 [ext_resource type="Script" uid="uid://ckghekal766gq" path="res://Weapons/Sword/sword_heavy/hitbox_sh.gd" id="26_oybyf"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_cegan"]
@@ -533,25 +534,25 @@ region = Rect2(96, 128, 32, 32)
 [sub_resource type="SpriteFrames" id="SpriteFrames_1u8w0"]
 animations = [{
 "frames": [{
-"duration": 3.0,
+"duration": 2.0,
 "texture": ExtResource("18_3iwfv")
 }, {
-"duration": 3.0,
+"duration": 2.0,
 "texture": ExtResource("19_qwsg1")
 }, {
-"duration": 4.0,
+"duration": 2.0,
 "texture": ExtResource("20_1xqrm")
 }, {
-"duration": 4.0,
+"duration": 2.0,
 "texture": ExtResource("21_bfour")
 }, {
-"duration": 3.0,
+"duration": 4.0,
 "texture": ExtResource("22_8gr2b")
 }, {
-"duration": 2.0,
+"duration": 3.0,
 "texture": ExtResource("23_vl8ci")
 }, {
-"duration": 2.0,
+"duration": 3.0,
 "texture": ExtResource("24_ieltc")
 }],
 "loop": false,
@@ -559,17 +560,122 @@ animations = [{
 "speed": 60.0
 }]
 
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_yaehf"]
-radius = 17.333344
-height = 115.55548
+[sub_resource type="AtlasTexture" id="AtlasTexture_2wuci"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(0, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iruf7"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(160, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j5n4i"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(320, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_634y6"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(480, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_efrwb"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(640, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hiqhm"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(800, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tkwlq"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(960, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hl5qd"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1120, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ek41f"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1280, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_khis8"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1440, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b88wv"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1600, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pgbbb"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1760, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_331ug"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(1920, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ny14h"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(2080, 0, 160, 160)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ibah8"]
+atlas = ExtResource("25_qtqh7")
+region = Rect2(2240, 0, 160, 160)
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_0odxb"]
 animations = [{
-"frames": [],
-"loop": true,
+"frames": [{
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_2wuci")
+}, {
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_iruf7")
+}, {
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_j5n4i")
+}, {
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_634y6")
+}, {
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_efrwb")
+}, {
+"duration": 2.0,
+"texture": SubResource("AtlasTexture_hiqhm")
+}, {
+"duration": 4.0,
+"texture": SubResource("AtlasTexture_tkwlq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hl5qd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ek41f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_khis8")
+}, {
+"duration": 4.0,
+"texture": SubResource("AtlasTexture_b88wv")
+}, {
+"duration": 4.0,
+"texture": SubResource("AtlasTexture_pgbbb")
+}, {
+"duration": 4.0,
+"texture": SubResource("AtlasTexture_331ug")
+}, {
+"duration": 3.0,
+"texture": SubResource("AtlasTexture_ny14h")
+}, {
+"duration": 3.0,
+"texture": SubResource("AtlasTexture_ibah8")
+}],
+"loop": false,
 "name": &"sword_heavy",
 "speed": 60.0
 }]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_yaehf"]
+radius = 17.333344
+height = 115.55548
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_xuqvo"]
 radius = 28.0
@@ -624,29 +730,34 @@ scale = Vector2(0.75, 0.75)
 script = ExtResource("17_ibah8")
 
 [node name="LightAttack" type="AnimatedSprite2D" parent="WeaponHolder/Sword" unique_id=853929887]
+visible = false
 scale = Vector2(1.5, 1.5)
 sprite_frames = SubResource("SpriteFrames_1u8w0")
 animation = &"sword_light"
-frame = 3
 offset = Vector2(0, 30)
 
-[node name="HitboxSL" type="Area2D" parent="WeaponHolder/Sword/LightAttack" unique_id=1110077695 groups=["player_attack"]]
+[node name="HeavyAttack" type="AnimatedSprite2D" parent="WeaponHolder/Sword" unique_id=1821872018]
+position = Vector2(0, 85)
+scale = Vector2(1.25, 1.25)
+sprite_frames = SubResource("SpriteFrames_0odxb")
+animation = &"sword_heavy"
+frame = 14
+frame_progress = 1.0
+
+[node name="HitboxSL" type="Area2D" parent="WeaponHolder/Sword" unique_id=1110077695 groups=["player_attack"]]
+scale = Vector2(1.5, 1.5)
 monitoring = false
 script = ExtResource("25_fddr8")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="WeaponHolder/Sword/LightAttack/HitboxSL" unique_id=1005605719]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WeaponHolder/Sword/HitboxSL" unique_id=1005605719]
 position = Vector2(0, 60)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_yaehf")
 
-[node name="HeavyAttack" type="AnimatedSprite2D" parent="WeaponHolder/Sword" unique_id=1821872018]
-sprite_frames = SubResource("SpriteFrames_0odxb")
-animation = &"sword_heavy"
-
-[node name="HitboxSH" type="Area2D" parent="WeaponHolder/Sword/HeavyAttack" unique_id=1463039939 groups=["player_attack"]]
+[node name="HitboxSH" type="Area2D" parent="WeaponHolder/Sword" unique_id=1463039939 groups=["player_attack"]]
 monitoring = false
 script = ExtResource("26_oybyf")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="WeaponHolder/Sword/HeavyAttack/HitboxSH" unique_id=1404496373]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WeaponHolder/Sword/HitboxSH" unique_id=1404496373]
 position = Vector2(0, 120)
 shape = SubResource("CapsuleShape2D_xuqvo")
