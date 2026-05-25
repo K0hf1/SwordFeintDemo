@@ -1,53 +1,45 @@
 # input_buffer.gd
-# Reads Input.* each physics tick and writes to InputSnapshot.
-# Attach as a child Node of Player, named "InputBuffer".
+# Kept as a thin node in the Player scene for two purposes:
 #
-# Input Map (Project Settings → Input Map):
-#   "light_attack"   → Left Mouse Button
-#   "heavy_attack"   → Right Mouse Button
-#   "dash"           → Left Shift
-#   "guard"          → Left Shift   (same key — dash=just_pressed, guard=is_pressed)
-#   "parry"          → C
-#   "weapon_switch"  → Tab
-#   "ultimate"       → R
+#   1. NETWORKING PATH (future): RemoteInputProvider calls receive_snapshot()
+#      to inject a deserialized snapshot from the network, which the host
+#      then feeds into Player.tick() on the next physics frame.
+#
+#   2. ROLLBACK PATH (future): a ring buffer of past snapshots can live here
+#      for re-simulation without touching Player.gd.
+#
+# LOCAL PLAY: this node is idle. LocalInputProvider builds the snapshot
+# directly and Player.gd receives it in _physics_process. capture_tick()
+# is no longer called in local mode.
+#
+# Attach to: Player → InputBuffer (Node)
 #
 extends Node
 
+# Last received snapshot — read by RemoteInputProvider.build_snapshot()
 var current: InputSnapshot = InputSnapshot.new()
 
 
-func capture_tick(tick_number: int, player_global_pos: Vector2) -> void:
-	var snap := InputSnapshot.new()
-	snap.tick = tick_number
-
-	# Movement
-	var dir := Vector2.ZERO
-	if Input.is_key_pressed(KEY_A): dir.x -= 1
-	if Input.is_key_pressed(KEY_D): dir.x += 1
-	if Input.is_key_pressed(KEY_W): dir.y -= 1
-	if Input.is_key_pressed(KEY_S): dir.y += 1
-	snap.move_direction = dir.normalized() if dir != Vector2.ZERO else Vector2.ZERO
-
-	# Aim toward mouse
-	var mouse_world := get_viewport().get_canvas_transform().affine_inverse() \
-		* get_viewport().get_mouse_position()
-	var to_mouse := mouse_world - player_global_pos
-	snap.aim_direction = to_mouse.normalized() if to_mouse.length() > 1.0 else Vector2.DOWN
-
-	# just_pressed actions (single-frame edge)
-	snap.light_attack_pressed  = Input.is_action_just_pressed("light_attack")
-	snap.heavy_attack_pressed  = Input.is_action_just_pressed("heavy_attack")
-	snap.dash_pressed          = Input.is_action_just_pressed("dash")
-	snap.parry_pressed         = Input.is_action_just_pressed("parry")
-	snap.weapon_switch_pressed = Input.is_action_just_pressed("weapon_switch")
-	snap.ultimate_pressed      = Input.is_action_just_pressed("ultimate")
-
-	# Held action (true every frame the key is down)
-	snap.guard_held = Input.is_action_pressed("guard")
-
-	current = snap
-
-
-# Networking path
+# ── Networking path ───────────────────────────────────────────────────────────
+# Called by the network layer when a serialized snapshot arrives.
+# The RemoteInputProvider then reads `current` to serve it to Player.tick().
 func receive_snapshot(data: Dictionary) -> void:
 	current = InputSnapshot.deserialize(data)
+
+
+# ── Future rollback buffer ────────────────────────────────────────────────────
+# Uncomment and expand when rollback is introduced:
+#
+# const BUFFER_SIZE := 8
+# var _history: Array[InputSnapshot] = []
+#
+# func push(snap: InputSnapshot) -> void:
+# 	_history.push_front(snap)
+# 	if _history.size() > BUFFER_SIZE:
+# 		_history.pop_back()
+#
+# func get_at(tick: int) -> InputSnapshot:
+# 	for s in _history:
+# 		if s.tick == tick:
+# 			return s
+# 	return InputSnapshot.new()

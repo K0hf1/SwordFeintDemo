@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://sllb6fpu6a2v"]
+
+[ext_resource type="Texture2D" uid="uid://bu7erb7gkriup" path="res://Backgrounds/29.png" id="1_0qdl2"]
+[ext_resource type="Script" uid="uid://dy7nu7o1b4rpw" path="res://arena_test.gd" id="1_g5c2m"]
+[ext_resource type="PackedScene" uid="uid://fk4suito2lju" path="res://dummy.tscn" id="3_fs7ic"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g5c2m"]
+size = Vector2(1154, 50)
+
+[node name="ArenaTest" type="Node2D" unique_id=1370662484]
+script = ExtResource("1_g5c2m")
+
+[node name="Background" type="Sprite2D" parent="." unique_id=412057709]
+scale = Vector2(1.8000001, 1.4896553)
+texture = ExtResource("1_0qdl2")
+centered = false
+
+[node name="Players" type="Node2D" parent="." unique_id=1772841226]
+
+[node name="Arena" type="Node2D" parent="." unique_id=847280005]
+
+[node name="Walls" type="Node2D" parent="Arena" unique_id=98336594]
+
+[node name="Top" type="StaticBody2D" parent="Arena/Walls" unique_id=477363377]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Walls/Top" unique_id=695917834]
+position = Vector2(577, -21.84)
+shape = SubResource("RectangleShape2D_g5c2m")
+
+[node name="Bottom" type="StaticBody2D" parent="Arena/Walls" unique_id=64072302]
+position = Vector2(600, 644)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Walls/Bottom" unique_id=203323689]
+position = Vector2(-24, 26.295)
+shape = SubResource("RectangleShape2D_g5c2m")
+
+[node name="Left" type="StaticBody2D" parent="Arena/Walls" unique_id=93293432]
+position = Vector2(435, 388)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Walls/Left" unique_id=1000164177]
+position = Vector2(-459.915, -78)
+rotation = 1.5707964
+shape = SubResource("RectangleShape2D_g5c2m")
+
+[node name="Right" type="StaticBody2D" parent="Arena/Walls" unique_id=562056735]
+position = Vector2(1, 309)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Arena/Walls/Right" unique_id=40092986]
+position = Vector2(1173, -3)
+rotation = 1.5707964
+shape = SubResource("RectangleShape2D_g5c2m")
+
+[node name="SpawnA" type="Marker2D" parent="Arena" unique_id=404743744]
+position = Vector2(587, 490)
+
+[node name="SpawnB" type="Marker2D" parent="Arena" unique_id=458540181]
+position = Vector2(575, 300)
+
+[node name="DummyMain" parent="." unique_id=1322366105 instance=ExtResource("3_fs7ic")]
+position = Vector2(-398, -237)

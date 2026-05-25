@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dfvkaly73j4qp" path="res://Entities/dummy.gd" id="1_0umox"]
 [ext_resource type="Texture2D" uid="uid://cr646b4pjc8x7" path="res://Characters/idle_down.png" id="2_btqty"]
-[ext_resource type="Script" uid="uid://c8ynsjvj2byjc" path="res://Weapons/Sword/sword_light/hurtbox.gd" id="3_0umox"]
+[ext_resource type="Script" uid="uid://cbkxpx6it7gs2" path="res://Entities/player_hurtbox.gd" id="3_0umox"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_sfvet"]
 radius = 18.0
@@ -88,7 +88,7 @@ sprite_frames = SubResource("SpriteFrames_osmo4")
 animation = &"dummy_idle"
 frame_progress = 0.7358149
 
-[node name="Hurtbox" type="Area2D" parent="Dummy" unique_id=999773755 groups=["enemy_hurtbox"]]
+[node name="Hurtbox" type="Area2D" parent="Dummy" unique_id=999773755 groups=["hurtbox"]]
 script = ExtResource("3_0umox")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Dummy/Hurtbox" unique_id=1871596429]

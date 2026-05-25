@@ -21,4 +21,4 @@ signal hit_received(hit_data: HitData)
 func _ready() -> void:
 	monitoring  = false   # hurtbox doesn't need to detect others
 	monitorable = true    # attackers' hitboxes need to detect us
-	add_to_group("enemy_hurtbox")  # remove "enemy_" prefix if this is player's hurtbox
+	add_to_group("hurtbox")

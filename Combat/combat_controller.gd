@@ -69,7 +69,7 @@ var attacks: Dictionary = {}
 @onready var _combo:    Node             = $"../ComboTracker"
 @onready var _parry:    Node             = $"../Parry"
 @onready var _player:   CharacterBody2D  = get_parent()
-@onready var _hurtbox:  Area2D           = $"../Hurtbox"
+@onready var _hurtbox:  PlayerHurtbox    = $"../Hurtbox"
 
 # Active hitbox reference — swapped per attack type
 var _active_hitbox: Area2D = null
@@ -245,19 +245,14 @@ func _enter_idle() -> void:
 	hit_this_swing.clear()
 	current_attack = null
 	_active_hitbox = null
-	_sword.reset()   # hides both attack branches cleanly; was _sword.visible = false
+	_sword.visible = false
 	print("[Combat] IDLE — tick:%d" % tick_counter)
 
 
 func _enter_parrying() -> void:
-	# Ask the Parry node to open a window FIRST.
-	# begin_parry() returns false if on cooldown or already active — in that case
-	# we must NOT change combat_state, or the state machine gets stuck in PARRYING
-	# with no window to close it.
-	if not _parry.begin_parry(tick_counter):
-		return   # cooldown active — stay in current state, no animation change
 	combat_state = CombatState.PARRYING
-	# Connect close signals once (guards against duplicate connections on re-press)
+	_parry.begin_parry(tick_counter)
+	# Listen for parry window close so we return to IDLE
 	if not _parry.parry_whiff.is_connected(_on_parry_ended):
 		_parry.parry_whiff.connect(_on_parry_ended)
 	if not _parry.parry_success.is_connected(_on_parry_success):
@@ -281,7 +276,11 @@ func _query_hits() -> void:
 		return
 
 	for area in _active_hitbox.get_overlapping_areas():
-		if not area.is_in_group("enemy_hurtbox"):
+		# Accept any hurtbox in the universal "hurtbox" group.
+		# Self-hit guard: skip our own Hurtbox node (same CharacterBody2D parent).
+		if not area.is_in_group("hurtbox"):
+			continue
+		if area.get_parent() == _player:
 			continue
 		if hit_this_swing.has(area):
 			continue
@@ -289,7 +288,12 @@ func _query_hits() -> void:
 		hit_this_swing[area] = true
 
 		var hit := _build_hit_data(area)
-		area.hit_received.emit(hit)
+		# area comes back as base Area2D from get_overlapping_areas().
+		# hit_received is defined on Hurtbox and PlayerHurtbox, not Area2D.
+		# We must call through the typed signal — use has_signal as a safety
+		# net then emit via the node's own signal object.
+		if area.has_signal("hit_received"):
+			area.emit_signal("hit_received", hit)
 
 		# Only record combo credit if the target is NOT guarded.
 		# The hit still lands (reduced damage) but contributes nothing to the chain.
