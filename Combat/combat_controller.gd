@@ -69,7 +69,7 @@ var attacks: Dictionary = {}
 @onready var _combo:    Node             = $"../ComboTracker"
 @onready var _parry:    Node             = $"../Parry"
 @onready var _player:   CharacterBody2D  = get_parent()
-@onready var _hurtbox:  PlayerHurtbox    = $"../Hurtbox"
+@onready var _hurtbox:  Area2D           = $"../Hurtbox"
 
 # Active hitbox reference — swapped per attack type
 var _active_hitbox: Area2D = null
@@ -98,10 +98,10 @@ func _ready() -> void:
 	sword_heavy.attack_id           = "sword_heavy"
 	sword_heavy.weapon_id           = "sword"
 	sword_heavy.attack_type         = "heavy"
-	sword_heavy.startup_frames      = 20   # ~367ms wind-up — punishable if read
-	sword_heavy.active_frames       = 1
-	sword_heavy.recovery_frames     = 20
-	sword_heavy.damage              = 20.0
+	sword_heavy.startup_frames      = 22   # ~367ms wind-up — punishable if read
+	sword_heavy.active_frames       = 3
+	sword_heavy.recovery_frames     = 18
+	sword_heavy.damage              = 18.0
 	sword_heavy.knockback_force     = 350.0
 	sword_heavy.knockback_angle_deg = 15.0  # low angle — stab pushes horizontal
 	sword_heavy.hitstun_frames      = 20
@@ -250,9 +250,14 @@ func _enter_idle() -> void:
 
 
 func _enter_parrying() -> void:
+	# Ask the Parry node to open a window FIRST.
+	# begin_parry() returns false if on cooldown or already active — in that case
+	# we must NOT change combat_state, or the state machine gets stuck in PARRYING
+	# with no window to close it.
+	if not _parry.begin_parry(tick_counter):
+		return   # cooldown active — stay in current state, no animation change
 	combat_state = CombatState.PARRYING
-	_parry.begin_parry(tick_counter)
-	# Listen for parry window close so we return to IDLE
+	# Connect close signals once (guards against duplicate connections on re-press)
 	if not _parry.parry_whiff.is_connected(_on_parry_ended):
 		_parry.parry_whiff.connect(_on_parry_ended)
 	if not _parry.parry_success.is_connected(_on_parry_success):
@@ -339,19 +344,24 @@ func _on_hit_incoming(hit: HitData) -> void:
 		print("[Combat] ARMOR — heavy crushes incoming light from '%s'" % hit.attacker.name)
 		return   # light hit suppressed — heavy is uninterrupted
 
-	# ── GUARD CHECK (informational) ──────────────────────────────────────────
-	# Damage reduction is applied by PlayerHealth._on_hit_incoming(), which reads
-	# is_guarding directly. CombatController does NOT touch HP — it only owns state.
+	# ── GUARD CHECK ───────────────────────────────────────────────────────────
+	# Guard reduces damage and blocks combo credit on the attacker's side.
+	# Combo credit is already blocked in _query_hits() on the attacker.
+	# Here we just scale the damage before applying it.
+	var effective_damage := hit.damage
 	if is_guarding:
-		print("[Combat] GUARD — hit will be reduced by PlayerHealth")
+		effective_damage *= GUARD_DAMAGE_MULTIPLIER
+		print("[Combat] GUARD — damage reduced to %.1f" % effective_damage)
 
-	# ── APPLY HITSTUN ─────────────────────────────────────────────────────────
-	# Hitstun is a combat STATE concern — CombatController owns it.
-	# HP subtraction is a health concern — PlayerHealth owns it (via hit_received signal).
+	# ── APPLY HIT ────────────────────────────────────────────────────────────
+	# Deliver damage to this player's health system.
+	# For now, just enter hitstun. Hook up to a HealthComponent when ready.
 	enter_hitstun(hit.hitstun_frames)
 
-	print("[Combat] TOOK HIT — atk:%s  raw_dmg:%.1f  hitstun:%d  guarded:%s"
-		% [hit.attack_id, hit.damage, hit.hitstun_frames, str(is_guarding)])
+	# TODO: apply effective_damage to health component:
+	# $HealthComponent.take_damage(effective_damage)
+	print("[Combat] TOOK HIT — atk:%s  dmg:%.1f  hitstun:%d"
+		% [hit.attack_id, effective_damage, hit.hitstun_frames])
 
 
 # ── Hitstun ───────────────────────────────────────────────────────────────────
