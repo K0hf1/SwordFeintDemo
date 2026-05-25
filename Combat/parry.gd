@@ -41,7 +41,7 @@ const PARRY_WINDOW_FRAMES: int = 12
 # Cooldown between parry attempts (seconds). Prevents spam.
 # At 60Hz: 1.5s = 90 ticks, but we track this in real time via _process
 # so it works regardless of physics tick rate.
-const PARRY_COOLDOWN_SECONDS: float = 1.5
+const PARRY_COOLDOWN_SECONDS: float = 2.5
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var _is_active:       bool = false
@@ -88,16 +88,17 @@ func _process(delta: float) -> void:
 
 # Called by CombatController when parry input fires and state permits.
 # tick_now: the current tick_counter from CombatController.
-func begin_parry(tick_now: int) -> void:
+func begin_parry(tick_now: int) -> bool:
 	if _is_active:
-		return   # already in a parry window, ignore re-press
+		return false   # already in a parry window, ignore re-press
 	if _cooldown_remaining > 0.0:
 		print("[Parry] On cooldown — %.2fs remaining." % _cooldown_remaining)
-		return
+		return false
 	_is_active       = true
 	_window_end_tick = tick_now + PARRY_WINDOW_FRAMES
 	print("[Parry] Window opened — ends at tick %d" % _window_end_tick)
 	parry_started.emit()
+	return true
 
 
 # Called by CombatController each tick while a parry window is open.
