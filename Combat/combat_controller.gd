@@ -57,6 +57,7 @@ var attacks: Dictionary = {}
 @onready var _parry:    Node             = $"../Parry"
 @onready var _player:   CharacterBody2D  = get_parent()
 @onready var _hurtbox:  PlayerHurtbox    = $"../Hurtbox"
+@onready var _health:   PlayerHealth     = $"../PlayerHealth"
 
 var _active_hitbox: Area2D = null
 
@@ -313,11 +314,21 @@ func _build_hit_data(target_hurtbox: Area2D) -> HitData:
 
 
 # ── Incoming hit resolver (connected to _hurtbox.hit_received) ────────────────
+# CombatController is the SOLE subscriber to hit_received.
+# It runs every RPS check in sequence. Only if ALL checks pass does it call
+# _health.apply_hit() — PlayerHealth never sees suppressed hits.
+#
+# Execution order guarantee:
+#   hit_received fires → this handler runs → RPS resolved → apply_hit() called
+#   PlayerHealth.apply_hit() is a plain method call, NOT a signal subscriber,
+#   so there is no race between two independent signal handlers.
 func _on_hit_incoming(hit: HitData) -> void:
 	# ── PARRY CHECK ───────────────────────────────────────────────────────────
+	# Must be first. Parry sets hit.was_parried = true and reflects damage back.
+	# Return immediately — no hitstun, no HP loss for the defender.
 	if _parry.is_active():
 		if _parry.on_hit_incoming(hit, active_weapon_id):
-			return   # parried — take no damage, no hitstun
+			return   # parried — fully suppressed, reflection already queued
 
 	# ── ARMOR CHECK ───────────────────────────────────────────────────────────
 	if combat_state == CombatState.ACTIVE \
@@ -334,9 +345,13 @@ func _on_hit_incoming(hit: HitData) -> void:
 		print("[Combat] [%s] GUARD — damage reduced to %.1f" % [_player.name, effective_damage])
 
 	# ── APPLY HIT ────────────────────────────────────────────────────────────
+	# All checks passed. Hitstun first, then health — order matches the log.
 	enter_hitstun(hit.hitstun_frames)
 	print("[Combat] [%s] TOOK HIT — atk:%s  dmg:%.1f  hitstun:%d"
 		% [_player.name, hit.attack_id, effective_damage, hit.hitstun_frames])
+	# Pass flash_reflected=true for parry reflections so PlayerHealth flashes
+	# the original attacker's sprite, not the defender's.
+	_health.apply_hit(hit, hit.is_reflected)
 
 
 # ── Hitstun ───────────────────────────────────────────────────────────────────

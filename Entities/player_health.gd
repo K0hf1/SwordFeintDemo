@@ -30,7 +30,7 @@ var is_dead: bool = false
 const GUARD_DAMAGE_MULTIPLIER: float = 0.35
 
 # ── Node refs ─────────────────────────────────────────────────────────────────
-@onready var _hurtbox:  PlayerHurtbox    = $"../Hurtbox"
+# _hurtbox ref removed — PlayerHealth no longer subscribes to hit_received.
 @onready var _combat:   Node             = $"../CombatController"
 @onready var _anim:     AnimatedSprite2D = $"../Body"
 
@@ -41,23 +41,23 @@ signal player_died()
 
 func _ready() -> void:
 	hp = max_hp
-	_hurtbox.hit_received.connect(_on_hit_incoming)
+	# DO NOT connect to _hurtbox.hit_received here.
+	# PlayerHealth no longer subscribes to the signal directly.
+	# CombatController is the sole subscriber and calls apply_hit() only after
+	# full RPS resolution (parry / armor / guard). This guarantees PlayerHealth
+	# never receives a hit that was suppressed by parry.
 
 
 # ── Incoming hit ──────────────────────────────────────────────────────────────
-func _on_hit_incoming(hit: HitData) -> void:
-	# Skip hits that were parried before reaching us (parry already blocked them
-	# in CombatController; this signal should never fire for parried hits, but
-	# guard here as a safety net).
-	if hit.was_parried:
-		return
-
-	# Reflected hits: the attacker receives their damage back.
-	# Flash the ATTACKER's sprite (not ours), then apply damage normally.
-	# Do NOT skip — the attacker must take HP damage from the reflection.
+# Called by CombatController AFTER full RPS resolution (parry/armor/guard).
+# This method only runs when the hit has been confirmed as valid — it never
+# needs to check was_parried or suppress anything itself.
+#
+# flash_reflected: pass true when this is a reflected hit so we flash the
+# attacker's sprite instead of our own.
+func apply_hit(hit: HitData, flash_reflected: bool = false) -> void:
 	var flash_target: AnimatedSprite2D
-	if hit.is_reflected:
-		# Flash the attacker's Body sprite to show they were hurt by the reflect.
+	if flash_reflected:
 		flash_target = _get_anim_of(hit.attacker)
 	else:
 		flash_target = _anim
