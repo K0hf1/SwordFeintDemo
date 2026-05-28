@@ -232,6 +232,7 @@ func _enter_idle() -> void:
 	hit_this_swing.clear()
 	current_attack = null
 	_active_hitbox = null
+	_knockback_velocity = Vector2.ZERO
 	_sword.visible = false
 	print("[Combat] [%s] IDLE — tick:%d" % [_player.name, GameClock.tick])
 
@@ -348,14 +349,16 @@ func _on_hit_incoming(hit: HitData) -> void:
 		return
 
 	# ── GUARD CHECK ───────────────────────────────────────────────────────────
-	var effective_damage := hit.damage
+	var effective_damage   := hit.damage
+	var effective_knockback := hit.knockback_vector
 	if is_guarding:
-		effective_damage *= GUARD_DAMAGE_MULTIPLIER
+		effective_damage    *= GUARD_DAMAGE_MULTIPLIER
+		effective_knockback *= GUARD_DAMAGE_MULTIPLIER   # guard also softens the push
 		print("[Combat] [%s] GUARD — damage reduced to %.1f" % [_player.name, effective_damage])
 
 	# ── APPLY HIT ────────────────────────────────────────────────────────────
 	# All checks passed. Hitstun first, then health — order matches the log.
-	enter_hitstun(hit.hitstun_frames)
+	enter_hitstun(hit.hitstun_frames, effective_knockback)
 	print("[Combat] [%s] TOOK HIT — atk:%s  dmg:%.1f  hitstun:%d"
 		% [_player.name, hit.attack_id, effective_damage, hit.hitstun_frames])
 	# Pass flash_reflected=true for parry reflections so PlayerHealth flashes
@@ -366,13 +369,30 @@ func _on_hit_incoming(hit: HitData) -> void:
 # ── Hitstun ───────────────────────────────────────────────────────────────────
 var _hitstun_end_tick: int = 0
 
-func enter_hitstun(frames: int) -> void:
+# Knockback impulse set at the start of hitstun; read each frame by player.gd
+# via get_knockback_velocity() and decayed there. Stored here (not in player.gd)
+# so CombatController owns all hitstun state in one place.
+var _knockback_velocity: Vector2 = Vector2.ZERO
+
+func enter_hitstun(frames: int, knockback: Vector2 = Vector2.ZERO) -> void:
 	combat_state = CombatState.HITSTUN
 	if _active_hitbox:
 		_active_hitbox.monitoring = false
-	_hitstun_end_tick = GameClock.tick + frames
+	_hitstun_end_tick   = GameClock.tick + frames
+	_knockback_velocity = knockback
 	hit_this_swing.clear()
-	print("[Combat] [%s] HITSTUN for %d frames" % [_player.name, frames])
+	print("[Combat] [%s] HITSTUN for %d frames  knockback:%s" % [_player.name, frames, knockback])
+
+
+# Called every physics tick by player.gd during HITSTUN to get the current
+# decayed impulse, then the caller writes the decayed value back via
+# set_knockback_velocity() before calling move_and_slide().
+func get_knockback_velocity() -> Vector2:
+	return _knockback_velocity
+
+
+func set_knockback_velocity(v: Vector2) -> void:
+	_knockback_velocity = v
 
 
 # ── Attack selection ──────────────────────────────────────────────────────────
