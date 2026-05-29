@@ -177,7 +177,7 @@ func _physics_process(_delta: float) -> void:
 	# 7. Broadcast position + animation to all other peers.
 	# Only the authority for this player sends — remotes just receive.
 	# unreliable_ordered means dropped packets are skipped, not queued,
-	# so stale frames never pile up behind a fresher one.
+	# so stale frames never pile up behind a fresher one.aa
 	if is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
 		rpc("sync_position", global_position)
 		rpc("sync_animation", _anim.animation)

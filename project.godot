@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="SwordFeintDemo"
-run/main_scene="uid://sllb6fpu6a2v"
+run/main_scene="uid://cpk4tla7ofac8"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
