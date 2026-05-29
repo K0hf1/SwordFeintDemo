@@ -1,44 +1,22 @@
 [gd_scene format=3 uid="uid://cpk4tla7ofac8"]
 
 [ext_resource type="Texture2D" uid="uid://n8hn53apl5jd" path="res://Backgrounds/origbig.png" id="1_06t4h"]
-[ext_resource type="Script" uid="uid://bctjremv6ktta" path="res://MainMenu/join_button.gd" id="2_jix8l"]
-[ext_resource type="Script" uid="uid://0ldi1ptcm661" path="res://MainMenu/host_button.gd" id="3_glbon"]
-[ext_resource type="Script" uid="uid://bk28l8tmbil4j" path="res://MainMenu/status_label.gd" id="4_nlkkf"]
+[ext_resource type="Script" uid="uid://coum2k5x34ejd" path="res://main_menu.gd" id="1_glbon"]
 
-[node name="Menu" type="Node2D" unique_id=865134956]
+[node name="Menu" type="Control" unique_id=445666208]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_glbon")
 
 [node name="Background" type="Sprite2D" parent="." unique_id=1286079967]
 position = Vector2(639.99994, 360.00003)
 scale = Vector2(0.5555555, 0.5555556)
 texture = ExtResource("1_06t4h")
 
-[node name="JoinButton" type="Button" parent="." unique_id=218456767]
-offset_left = 320.0
-offset_top = 448.0
-offset_right = 576.0
-offset_bottom = 512.0
-text = "JOIN"
-script = ExtResource("2_jix8l")
-
-[node name="HostButton" type="Button" parent="." unique_id=550470902]
-offset_left = 704.0
-offset_top = 448.0
-offset_right = 960.0
-offset_bottom = 512.0
-text = "HOST"
-script = ExtResource("3_glbon")
-
-[node name="IPinput" type="LineEdit" parent="." unique_id=804497778]
-offset_left = 512.0
-offset_top = 576.0
-offset_right = 768.0
-offset_bottom = 640.0
-text = "127.0.0.1"
-alignment = 1
-
 [node name="StatusLabel" type="Label" parent="." unique_id=921543420]
 modulate = Color(1, 1, 0.24705882, 1)
 custom_minimum_size = Vector2(300, 50)
+layout_mode = 0
 offset_left = 448.0
 offset_top = 320.0
 offset_right = 832.0
@@ -46,4 +24,38 @@ offset_bottom = 384.0
 text = "IDLE"
 horizontal_alignment = 1
 vertical_alignment = 1
-script = ExtResource("4_nlkkf")
+
+[node name="IPLineEdit" type="LineEdit" parent="." unique_id=804497778]
+layout_mode = 0
+offset_left = 320.0
+offset_top = 576.0
+offset_right = 576.0
+offset_bottom = 640.0
+text = "127.0.0.1"
+placeholder_text = "IP ADDRESS"
+alignment = 1
+
+[node name="JoinButton" type="Button" parent="." unique_id=218456767]
+layout_mode = 0
+offset_left = 320.0
+offset_top = 448.0
+offset_right = 576.0
+offset_bottom = 512.0
+text = "JOIN"
+
+[node name="HostButton" type="Button" parent="." unique_id=550470902]
+layout_mode = 0
+offset_left = 704.0
+offset_top = 448.0
+offset_right = 960.0
+offset_bottom = 512.0
+text = "HOST"
+
+[node name="PortLineEdit" type="LineEdit" parent="." unique_id=1347026345]
+layout_mode = 0
+offset_left = 704.0
+offset_top = 576.0
+offset_right = 960.0
+offset_bottom = 640.0
+placeholder_text = "PORT"
+alignment = 1

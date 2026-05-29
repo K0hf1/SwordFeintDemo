@@ -62,13 +62,18 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	# Local play: advance the clock ourselves each physics frame.
-	# Multiplayer host: call rpc("set_tick", tick + 1) from your network manager
-	# instead of relying on this — then clients receive set_tick() via RPC and
-	# never hit this branch (their _physics_process is still running but the
-	# RPC path takes priority via set_tick()).
+	# Local play / host: advance the clock ourselves each physics frame.
+	# Then broadcast the new value to all clients so their clocks stay in sync.
+	# Clients do NOT self-advance (see _is_network_client()); they receive the
+	# authoritative value via the set_tick() RPC below.
 	if not _is_network_client():
 		_advance()
+		# Broadcast to clients when a real network peer is active.
+		# set_tick uses "call_remote" so the host does NOT double-increment itself.
+		var mp := get_tree().get_multiplayer()
+		if mp != null and mp.multiplayer_peer != null \
+				and not (mp.multiplayer_peer is OfflineMultiplayerPeer):
+			rpc("set_tick", tick)
 
 
 # ── Network host entry point ──────────────────────────────────────────────────

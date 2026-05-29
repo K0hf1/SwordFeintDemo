@@ -57,7 +57,9 @@ extends CharacterBody2D
 @onready var _health: Node             = $PlayerHealth
 
 # ── Input provider ────────────────────────────────────────────────────────────
-var _input_provider: LocalInputProvider = null
+# Typed as base Object so both LocalInputProvider and NullInputProvider fit.
+# All providers must implement build_snapshot(tick, pos, viewport) → InputSnapshot.
+var _input_provider: Object = null
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var last_dir_vector:    Vector2 = Vector2.DOWN
@@ -83,6 +85,37 @@ func set_input_provider(provider) -> void:
 	_input_provider = provider
 
 
+# ── Position sync ─────────────────────────────────────────────────────────────
+# The authority peer (whoever controls this player) broadcasts its position
+# every physics frame. The remote peer receives it and snaps to it.
+#
+# This is the simplest possible sync — no interpolation, no lag compensation.
+# It will feel slightly stuttery over real network latency but is correct and
+# easy to upgrade to interpolation later without changing the RPC signature.
+#
+# "any_peer" + "call_remote" means: any peer may send this UP TO the server
+# (in Godot 4 ENet, RPCs from clients go to server unless relayed). For a
+# true peer-to-peer broadcast we call rpc() which sends to all connected peers.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_position(pos: Vector2) -> void:
+	# Only apply if we are NOT the authority for this player — we trust the
+	# sender's position, not our local simulation for remote players.
+	if not is_multiplayer_authority():
+		global_position = pos
+
+
+# ── Animation sync ────────────────────────────────────────────────────────────
+# The authority broadcasts the animation name each frame so the remote peer
+# displays the correct sprite even though it runs NullInputProvider (no local
+# input → no local animation decisions). Sent unreliable_ordered so a stale
+# frame never overwrites a fresher one.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func sync_animation(anim_name: String) -> void:
+	if not is_multiplayer_authority():
+		if _anim.animation != anim_name:
+			_anim.play(anim_name)
+
+
 # ── Main tick ─────────────────────────────────────────────────────────────────
 func _physics_process(_delta: float) -> void:
 	# ── Dead freeze ───────────────────────────────────────────────────────────
@@ -100,6 +133,13 @@ func _physics_process(_delta: float) -> void:
 	var current_tick: int = GameClock.tick
 
 	# 1. Build InputSnapshot
+	# The provider assigned at spawn time IS the authority gate:
+	#   is_multiplayer_authority() == true  → LocalInputProvider  (reads keyboard)
+	#   is_multiplayer_authority() == false → NullInputProvider   (returns zeros)
+	# Both implement the same build_snapshot() interface so this block never
+	# needs to branch on authority itself. When input-sync RPC is added, swap
+	# NullInputProvider for RemoteInputProvider in ArenaMultiplayer — here
+	# stays unchanged.
 	var input: InputSnapshot
 	if _input_provider != null:
 		input = _input_provider.build_snapshot(current_tick, global_position, get_viewport())
@@ -134,6 +174,14 @@ func _physics_process(_delta: float) -> void:
 	# 6. Animation
 	_update_animation(input)
 
+	# 7. Broadcast position + animation to all other peers.
+	# Only the authority for this player sends — remotes just receive.
+	# unreliable_ordered means dropped packets are skipped, not queued,
+	# so stale frames never pile up behind a fresher one.
+	if is_multiplayer_authority() and multiplayer.has_multiplayer_peer():
+		rpc("sync_position", global_position)
+		rpc("sync_animation", _anim.animation)
+
 
 # ── Dash ──────────────────────────────────────────────────────────────────────
 func _handle_dash_input(input: InputSnapshot) -> void:
@@ -150,6 +198,18 @@ func _handle_dash_input(input: InputSnapshot) -> void:
 func _tick_dash() -> void:
 	var current_tick: int = GameClock.tick
 	var elapsed := current_tick - _dash_tick_start
+
+	# Defensive: if elapsed is somehow negative (e.g. clock was desynced and
+	# then corrected backward) or unreasonably large, abort the dash cleanly
+	# rather than glide forever.
+	if elapsed < 0 or elapsed > dash_frames + 4:
+		_dash_active               = false
+		_dash_cooldown_until       = current_tick + dash_cooldown_frames
+		_dash_attack_lockout_until = current_tick + dash_attack_lockout_frames
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	if elapsed < dash_frames:
 		velocity = _dash_dir * dash_force
 		move_and_slide()

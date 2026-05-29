@@ -1,18 +1,18 @@
 [gd_scene format=3 uid="uid://sllb6fpu6a2v"]
 
-[ext_resource type="Texture2D" uid="uid://bu7erb7gkriup" path="res://Backgrounds/29.png" id="1_0qdl2"]
-[ext_resource type="Script" uid="uid://dy7nu7o1b4rpw" path="res://arena_test.gd" id="1_g5c2m"]
+[ext_resource type="Script" uid="uid://dy7nu7o1b4rpw" path="res://arena_multiplayer.gd" id="1_d4c46"]
+[ext_resource type="Texture2D" uid="uid://bu7erb7gkriup" path="res://Backgrounds/29.png" id="2_tkg34"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_g5c2m"]
 size = Vector2(1323, 50)
 
-[node name="ArenaTest" type="Node2D" unique_id=1370662484]
-script = ExtResource("1_g5c2m")
+[node name="ArenaMultiplayer" type="Node2D" unique_id=1370662484]
+script = ExtResource("1_d4c46")
 
 [node name="Background" type="Sprite2D" parent="." unique_id=412057709]
 position = Vector2(0, 4.7683716e-07)
 scale = Vector2(2, 1.6551725)
-texture = ExtResource("1_0qdl2")
+texture = ExtResource("2_tkg34")
 centered = false
 
 [node name="Players" type="Node2D" parent="." unique_id=1772841226]
