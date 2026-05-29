@@ -46,6 +46,10 @@ extends CharacterBody2D
 @export var dash_frames: int               = 6
 @export var dash_cooldown_frames: int      = 30
 @export var dash_attack_lockout_frames:int = 20
+# Fraction of knockback velocity retained each physics tick during hitstun.
+# 0.82 at 60 Hz ≈ 30-frame half-life, giving a snappy-but-readable slide.
+# Keep this value deterministic across all peers (no delta scaling).
+@export var knockback_decay: float         = 0.82
 
 # ── Node refs ─────────────────────────────────────────────────────────────────
 @onready var _anim:   AnimatedSprite2D = $Body
@@ -118,6 +122,11 @@ func _physics_process(_delta: float) -> void:
 		_tick_dash()
 	elif _combat.can_move():
 		_handle_movement(input)
+	elif _combat.get_state() == _combat.CombatState.HITSTUN:
+		# Player is in hitstun — slide out the stored knockback impulse.
+		# All other combat states (STARTUP, ACTIVE, RECOVERY, PARRYING) keep
+		# the player planted at zero velocity.
+		_tick_hitstun_movement()
 	else:
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -149,6 +158,36 @@ func _tick_dash() -> void:
 		_dash_cooldown_until       = current_tick + dash_cooldown_frames
 		_dash_attack_lockout_until = current_tick + dash_attack_lockout_frames
 		velocity = Vector2.ZERO
+
+
+# ── Hitstun movement ──────────────────────────────────────────────────────────
+# Called every physics tick while combat_state == HITSTUN.
+# Reads the stored knockback impulse from CombatController, applies it as
+# this frame's velocity, then decays it by a fixed multiplier and writes it
+# back so next frame is a little slower.
+#
+# ── Why fixed-multiplier decay (not delta-scaled)? ────────────────────────────
+# delta varies slightly frame-to-frame due to OS scheduling, making delta-based
+# decay non-deterministic across two machines. A per-tick constant multiplier
+# produces the exact same velocity sequence on every peer given the same initial
+# knockback_vector — which is itself deterministic because it's computed from
+# AttackData constants and position at hit time.
+func _tick_hitstun_movement() -> void:
+	var kb: Vector2 = _combat.get_knockback_velocity()
+	if kb == Vector2.ZERO:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
+	velocity = kb
+	move_and_slide()
+
+	# Decay for next tick. Stop entirely below 1 px/tick to avoid
+	# perpetual micro-sliding that never fully resolves.
+	var decayed: Vector2 = kb * knockback_decay
+	if decayed.length() < 1.0:
+		decayed = Vector2.ZERO
+	_combat.set_knockback_velocity(decayed)
 
 
 func _is_dash_attack_locked() -> bool:

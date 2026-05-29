@@ -33,17 +33,20 @@
 extends Node
 
 # How long the parry window stays open (in physics ticks at 60Hz).
-# 12 ticks ≈ 200ms — tight but learnable. Tune to taste.
+# 5 ticks ≈ 83ms — tight but learnable. Tune to taste.
 const PARRY_WINDOW_FRAMES: int = 5
 
-# Cooldown between parry attempts (seconds). Prevents spam.
-const PARRY_COOLDOWN_SECONDS: float = 2.5
+# Cooldown between parry attempts (physics ticks at 60 Hz).
+# 150 ticks = 2.5 s — same feel as the old float constant, now deterministic.
+const PARRY_COOLDOWN_TICKS: int = 150
 
 # ── State ─────────────────────────────────────────────────────────────────────
 var _is_active:       bool = false
 var _window_end_tick: int  = 0
 
-var _cooldown_remaining: float = 0.0   # counts down in _process; >0 means on cooldown
+# Tick at which the cooldown expires. 0 means not on cooldown.
+# Compared against GameClock.tick in _physics_process — never touches _process.
+var _cooldown_end_tick: int = 0
 
 # ── Per-weapon effect registry ────────────────────────────────────────────────
 var _parry_effects: Dictionary = {}
@@ -66,13 +69,14 @@ func _ready() -> void:
 	pass
 
 
-func _process(delta: float) -> void:
-	if _cooldown_remaining > 0.0:
-		_cooldown_remaining -= delta
-		if _cooldown_remaining <= 0.0:
-			_cooldown_remaining = 0.0
-			var player_name: String = get_parent().name if get_parent() else "?"
-			print("[Parry] [%s] Cooldown expired — parry available." % player_name)
+# Cooldown expiry is checked here — in the same physics step as CombatController.tick().
+# This guarantees both systems observe "cooldown expired" on the exact same tick,
+# keeping the host and remote peers in lock-step.
+func _physics_process(_delta: float) -> void:
+	if _cooldown_end_tick > 0 and GameClock.tick >= _cooldown_end_tick:
+		_cooldown_end_tick = 0
+		var player_name: String = get_parent().name if get_parent() else "?"
+		print("[Parry] [%s] Cooldown expired — parry available." % player_name)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -80,9 +84,10 @@ func _process(delta: float) -> void:
 func begin_parry(tick_now: int) -> bool:
 	if _is_active:
 		return false
-	if _cooldown_remaining > 0.0:
+	if _cooldown_end_tick > 0:
 		var player_name: String = get_parent().name if get_parent() else "?"
-		print("[Parry] [%s] On cooldown — %.2fs remaining." % [player_name, _cooldown_remaining])
+		var ticks_left: int = _cooldown_end_tick - tick_now
+		print("[Parry] [%s] On cooldown — %d tick(s) remaining." % [player_name, ticks_left])
 		return false
 	_is_active       = true
 	_window_end_tick = tick_now + PARRY_WINDOW_FRAMES
@@ -176,13 +181,13 @@ func _play_parry_effect(weapon_id: String) -> void:
 
 
 func _close_window(was_success: bool) -> void:
-	_is_active          = false
-	_cooldown_remaining = PARRY_COOLDOWN_SECONDS
+	_is_active         = false
+	_cooldown_end_tick = GameClock.tick + PARRY_COOLDOWN_TICKS
 	var player_name: String = get_parent().name if get_parent() else "?"
 	if was_success:
-		print("[Parry] [%s] Window closed (SUCCESS) — cooldown %.1fs." % [player_name, PARRY_COOLDOWN_SECONDS])
+		print("[Parry] [%s] Window closed (SUCCESS) — cooldown %d ticks." % [player_name, PARRY_COOLDOWN_TICKS])
 	else:
-		print("[Parry] [%s] Window closed (whiff) — cooldown %.1fs." % [player_name, PARRY_COOLDOWN_SECONDS])
+		print("[Parry] [%s] Window closed (whiff) — cooldown %d ticks." % [player_name, PARRY_COOLDOWN_TICKS])
 		parry_whiff.emit()
 
 
@@ -191,7 +196,10 @@ func is_active() -> bool:
 	return _is_active
 
 func is_on_cooldown() -> bool:
-	return _cooldown_remaining > 0.0
+	return _cooldown_end_tick > 0
 
-func get_cooldown_remaining() -> float:
-	return _cooldown_remaining
+# Returns ticks remaining on cooldown (0 if not on cooldown).
+func get_cooldown_ticks_remaining() -> int:
+	if _cooldown_end_tick == 0:
+		return 0
+	return max(0, _cooldown_end_tick - GameClock.tick)
